@@ -15,6 +15,8 @@ from app.storage.files import FileStore
 
 if TYPE_CHECKING:
     from app.documents.jobs import JobRunner
+    from app.generation.base import AnswerProvider
+    from app.generation.service import AnswerService
     from app.retrieval.service import SearchService
 
 
@@ -29,16 +31,22 @@ class Services:
     files: FileStore = field(init=False)
     chunker: Chunker = field(init=False)
     doc_embedder: EmbeddingFileCache = field(init=False)
+    answer_provider: AnswerProvider | None = None
     runner: JobRunner | None = None
     search: SearchService = field(init=False)
+    answers: AnswerService = field(init=False)
 
     def __post_init__(self) -> None:
+        from app.generation.service import AnswerService
         from app.retrieval.service import SearchService
 
         self.files = FileStore(self.settings.data_dir)
         self.chunker = Chunker()
         self.doc_embedder = EmbeddingFileCache(self.settings.emb_cache_dir, self.embedder)
         self.search = SearchService(self)
+        if self.answer_provider is None:
+            self.answer_provider = build_answer_provider(self.settings)
+        self.answers = AnswerService(self, self.answer_provider)
 
     # --- 색인 프로필 (설계서 4.2, 5.4) ----------------------------------------
     @property
@@ -77,6 +85,22 @@ def build_embedder(settings: Settings) -> EmbeddingProvider:
     from app.retrieval.embeddings.local_st import LocalSTEmbedding
 
     return LocalSTEmbedding(settings.embedding_model, batch_size=settings.embedding_batch_size)
+
+
+def build_answer_provider(settings: Settings) -> AnswerProvider:
+    """ANSWER_PROVIDER: fake | openai | claude. 키 검증은 Settings 에서 기동 시 한다."""
+    timeout = float(settings.answer_timeout_seconds)
+    if settings.answer_provider == "openai":
+        from app.generation.openai_llm import OpenAILLM
+
+        return OpenAILLM(settings.openai_api_key.get_secret_value(), settings.openai_chat_model, timeout)
+    if settings.answer_provider == "claude":
+        from app.generation.claude_llm import ClaudeLLM
+
+        return ClaudeLLM(settings.anthropic_api_key.get_secret_value(), settings.claude_model, timeout)
+    from app.generation.fake_llm import FakeLLM
+
+    return FakeLLM()
 
 
 def build_services(settings: Settings) -> Services:

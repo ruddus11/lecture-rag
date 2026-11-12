@@ -50,6 +50,7 @@ def make_services_factory(**parts: Any) -> Callable[[Settings], Services]:
             vector=parts.get("vector") or QdrantStore(":memory:"),
             keyword=parts.get("keyword") or FakeKeyword(),
             ratelimiter=RateLimiter(settings),
+            answer_provider=parts.get("answer_provider"),
         )
 
     return factory
@@ -99,6 +100,11 @@ class Api:
     async def search(self, username: str, query: str, **body: Any) -> httpx.Response:
         return await self.c.post(
             "/api/v1/search", headers=await self.h(username), json={"query": query, **body}
+        )
+
+    async def answer(self, username: str, query: str, **body: Any) -> httpx.Response:
+        return await self.c.post(
+            "/api/v1/answers", headers=await self.h(username), json={"query": query, **body}
         )
 
     async def ingest(self, username: str, collection_slug: str, path: Path) -> dict[str, Any]:

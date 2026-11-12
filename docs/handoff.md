@@ -39,6 +39,10 @@ sqlite> select status, stage, attempts from ingestion_jobs → processing|embedd
 - OpenSearch 프로세스 종료 상태: `/health/ready` 503(`opensearch:false`), hybrid 5건 모두 `degraded=true, modes_used=["vector"]`(hit 5/5), keyword 5건 모두 503 `search_unavailable`. 재기동 후 hybrid `degraded=false` 5/5. 출력 `docs/logs/m5_opensearch_stop.txt`.
 - integration: `pytest -m integration` 4 passed (Qdrant payload index·필터·삭제, ingest→3모드→삭제→0건, OpenSearch 중단 시 degraded, Nori 분석).
 
+### M6 답변 수동 확인 (2026-11-12, fake provider, 실제 엔진 + bge-m3)
+
+`e2e_smoke --skip-upload --modes hybrid --answers`: 샘플 질문 5개 모두 200, `abstained=false`, 인용 페이지가 기대 페이지와 일치(5/5). fake provider는 첫 근거의 첫 문장을 답으로 쓰므로 답변 품질의 증거가 아니다. 출력 `docs/logs/m6_e2e_answers_fake.jsonl`. 실제 OpenAI·Claude 호출은 키가 없어 미실행.
+
 ## 알려진 문제
 
 - 구현 머신에 Docker가 없다. compose 기동·이미지 빌드는 Docker 환경에서 처음 확인해야 한다. 엔진 연동은 같은 버전의 네이티브 바이너리(`infra/local/`)로 확인했다.

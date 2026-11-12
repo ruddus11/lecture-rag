@@ -95,7 +95,7 @@ async def meta(request: Request, _: User = Depends(current_user)) -> dict[str, A
             "model": services.embedder.model,
             "dim": services.embedder.dim,
         },
-        "answer": {"provider": s.answer_provider, "model": None},
+        "answer": {"provider": services.answer_provider.name, "model": services.answer_provider.model},
         "index_profile": {
             "id": services.index_profile_id,
             "qdrant_collection": services.vector_collection if services.embedder.dim else None,

@@ -10,7 +10,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.routes import auth, collections, documents, health, jobs, search
+from app.api.routes import answers, auth, collections, documents, health, jobs, search
 from app.container import Services, build_services
 from app.core.config import CHUNKER_VERSION, PARSER_VERSION, Settings, get_settings
 from app.core.errors import install_error_handlers
@@ -108,7 +108,15 @@ def create_app(
         expose_headers=["X-Request-Id", "Retry-After", "Content-Range"],
     )
     app.add_middleware(RequestContextMiddleware)
-    for r in (health.router, auth.router, collections.router, documents.router, jobs.router, search.router):
+    for r in (
+        health.router,
+        auth.router,
+        collections.router,
+        documents.router,
+        jobs.router,
+        search.router,
+        answers.router,
+    ):
         app.include_router(r, prefix=API_PREFIX)
     return app
 
