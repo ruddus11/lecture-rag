@@ -36,6 +36,8 @@ CHUNKER_VERSION = "v1"
 PARSER_VERSION = "pymupdf-v1"
 PARSE_TIMEOUT_SECONDS = 60
 PROMPT_VERSION = "v1"
+EMBED_QUERY_TIMEOUT_SECONDS = 15  # 질문 임베딩 상한 (모델 적재 대기 포함)
+OPENSEARCH_INDEX = "chunks_v1"
 
 
 class Settings(BaseSettings):

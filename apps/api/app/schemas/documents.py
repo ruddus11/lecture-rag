@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from datetime import datetime
-
 from pydantic import BaseModel
+
+from app.schemas.common import UtcDatetime
 
 
 class UploadAccepted(BaseModel):
@@ -21,8 +21,8 @@ class DocumentOut(BaseModel):
     active_version: int
     error_code: str | None
     error_message: str | None
-    created_at: datetime
-    updated_at: datetime
+    created_at: UtcDatetime
+    updated_at: UtcDatetime
 
 
 class DocumentList(BaseModel):
@@ -38,9 +38,9 @@ class JobOut(BaseModel):
     attempts: int
     max_attempts: int
     error_code: str | None
-    created_at: datetime
-    started_at: datetime | None
-    finished_at: datetime | None
+    created_at: UtcDatetime
+    started_at: UtcDatetime | None
+    finished_at: UtcDatetime | None
 
 
 class RetryRequest(BaseModel):

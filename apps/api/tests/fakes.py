@@ -12,7 +12,7 @@ class FakeEmbedder:
     name = "local"
     model = "fake-embed"
 
-    def __init__(self, dim: int = 64, loaded: bool = True) -> None:
+    def __init__(self, dim: int = 256, loaded: bool = True) -> None:
         self.dim = dim
         self.loaded = loaded
         self.calls = 0
@@ -24,8 +24,11 @@ class FakeEmbedder:
         return self.loaded
 
     def _vec(self, text: str) -> list[float]:
+        """단어 + 글자 bigram 해시. 한국어 조사가 붙어도 겹치는 bigram 으로 유사도가 생긴다."""
         v = [0.0] * self.dim
-        for tok in text.lower().split():
+        compact = "".join(text.lower().split())
+        grams = text.lower().split() + [compact[i : i + 2] for i in range(len(compact) - 1)]
+        for tok in grams:
             h = int(hashlib.md5(tok.encode()).hexdigest(), 16)
             v[h % self.dim] += 1.0
         n = math.sqrt(sum(x * x for x in v)) or 1.0

@@ -12,3 +12,7 @@ users:
     password_hash: "$2b$12$WDlGvQCLZt6hHGSW.05iWOHQa7v/FRprcM3fF14ZnPWr3gnwmxFGG"
     institution: campus_b
     role: student
+  - username: b_admin            # 설계서 4.4 의 3계정에 추가: campus_b 업로드·격리 시나리오용 (ADR-003 부록)
+    password_hash: "$2b$12$MmItKcG2UIjAZT7vkZ.caO4xvWpc5XdwWXNyPIbn2.MY0LLLJ4wmO"
+    institution: campus_b
+    role: admin

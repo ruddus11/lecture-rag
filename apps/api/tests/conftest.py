@@ -12,14 +12,16 @@ from app.container import Services
 from app.core.config import Settings
 from app.core.ratelimit import RateLimiter
 from app.main import create_app
+from app.retrieval.vector import QdrantStore
 from app.storage.db import Database
-from tests.fakes import FakeEmbedder, FakeKeyword, FakeVector
+from tests.fakes import FakeEmbedder, FakeKeyword
 
 REPO = Path(__file__).resolve().parents[3]
 DEMO_PASSWORDS = {
     "a_admin": "admin-a-demo-2026",
     "a_student": "student-a-demo-2026",
     "b_student": "student-b-demo-2026",
+    "b_admin": "admin-b-demo-2026",
 }
 TEST_SECRET = "test-secret-0123456789-abcdefghijklmnop"
 
@@ -45,7 +47,7 @@ def make_services_factory(**parts: Any) -> Callable[[Settings], Services]:
             settings=settings,
             db=Database(settings.db_url),
             embedder=parts.get("embedder") or FakeEmbedder(),
-            vector=parts.get("vector") or FakeVector(),
+            vector=parts.get("vector") or QdrantStore(":memory:"),
             keyword=parts.get("keyword") or FakeKeyword(),
             ratelimiter=RateLimiter(settings),
         )
@@ -93,6 +95,18 @@ class Api:
             headers=headers,
             files={"file": (name or path.name, path.read_bytes(), "application/pdf")},
         )
+
+    async def search(self, username: str, query: str, **body: Any) -> httpx.Response:
+        return await self.c.post(
+            "/api/v1/search", headers=await self.h(username), json={"query": query, **body}
+        )
+
+    async def ingest(self, username: str, collection_slug: str, path: Path) -> dict[str, Any]:
+        cols = await self.collections(username)
+        r = await self.upload(username, cols[collection_slug], path)
+        assert r.status_code == 202, r.text
+        await self.drain()
+        return dict(r.json())
 
     async def drain(self) -> int:
         assert self.services.runner is not None

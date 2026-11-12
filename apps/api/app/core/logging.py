@@ -93,8 +93,10 @@ def setup_logging(level: str, secrets: list[str]) -> None:
     handler._lrag = True  # type: ignore[attr-defined]
     root.addHandler(handler)
     root.setLevel(level)
-    for noisy in ("uvicorn.access", "httpx", "httpcore", "opensearch", "urllib3"):
+    for noisy in ("uvicorn.access", "httpx", "httpcore", "urllib3"):
         logging.getLogger(noisy).setLevel(logging.WARNING)
+    # opensearch-py 는 연결 실패마다 traceback 을 WARNING 으로 남긴다. 실패는 앱 코드가 한 줄로 기록한다.
+    logging.getLogger("opensearch").setLevel(logging.ERROR)
 
 
 access_log = logging.getLogger("app.access")

@@ -6,11 +6,11 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import JSONResponse
-from sqlalchemy import text
+from sqlalchemy import func, select, text
 
 from app.api.deps import current_user
 from app.core.config import CHUNKER_VERSION, PARSER_VERSION
-from app.storage.models import User
+from app.storage.models import Document, User
 
 router = APIRouter(tags=["health"])
 log = logging.getLogger(__name__)
@@ -53,12 +53,34 @@ async def ready(request: Request) -> JSONResponse:
     else:
         checks["nori"] = "skipped(analyzer=standard)"
     checks["embedding_model"] = services.embedder.is_loaded()
+    warnings: list[str] = []
+    if checks["embedding_model"] and checks["qdrant"]:
+        name = services.vector_collection
+        ok, _ = await _check(services.vector.ensure_collection(name, services.embedder.dim))
+        checks["qdrant_collection"] = name if ok else False
+        _, idx = await _check(services.vector.payload_indexes(name))
+        checks["qdrant_payload_indexes"] = idx or []
+        if ok and await _reindex_required(services, name):
+            warnings.append("reindex_required")
+            log.warning("reindex_required", extra={"event": "reindex_required", "collection": name})
 
     failed = [k for k, v in checks.items() if v is False]
     body: dict[str, Any] = {"status": "ok" if not failed else "degraded", "checks": checks}
     if errors:
         body["errors"] = errors
+    if warnings:
+        body["warnings"] = warnings
     return JSONResponse(body, status_code=200 if not failed else 503)
+
+
+async def _reindex_required(services: Any, name: str) -> bool:
+    """ready 문서가 있는데 현재 임베딩 컬렉션이 비어 있으면 다른 모델로 색인된 것이다 (설계서 5.4)."""
+    with services.db.session() as s:
+        ready = s.scalar(select(func.count()).select_from(Document).where(Document.status == "ready")) or 0
+    if not ready:
+        return False
+    ok, n = await _check(services.vector.count(name))
+    return bool(ok and n == 0)
 
 
 @router.get("/meta")
@@ -74,6 +96,11 @@ async def meta(request: Request, _: User = Depends(current_user)) -> dict[str, A
             "dim": services.embedder.dim,
         },
         "answer": {"provider": s.answer_provider, "model": None},
+        "index_profile": {
+            "id": services.index_profile_id,
+            "qdrant_collection": services.vector_collection if services.embedder.dim else None,
+            "opensearch_index": services.keyword_index,
+        },
         "keyword_analyzer": s.keyword_analyzer,
         "chunker_version": CHUNKER_VERSION,
         "parser_version": PARSER_VERSION,

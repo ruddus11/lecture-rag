@@ -10,16 +10,46 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.routes import auth, collections, documents, health, jobs
+from app.api.routes import auth, collections, documents, health, jobs, search
 from app.container import Services, build_services
-from app.core.config import Settings, get_settings
+from app.core.config import CHUNKER_VERSION, PARSER_VERSION, Settings, get_settings
 from app.core.errors import install_error_handlers
 from app.core.logging import RequestContextMiddleware, setup_logging
 from app.documents.jobs import JobRunner
+from app.storage.models import IndexProfile
 from app.storage.seed import seed_from_files
 
 API_PREFIX = "/api/v1"
 log = logging.getLogger(__name__)
+
+
+async def _warm_up(services: Services) -> None:
+    """임베딩 모델 적재 → 색인 프로필 기록 → Qdrant 컬렉션 준비. 실패해도 기동은 계속한다(ready 가 알린다)."""
+    try:
+        await asyncio.to_thread(services.embedder.load)
+        register_index_profile(services)
+        await services.vector.ensure_collection(services.vector_collection, services.embedder.dim)
+    except Exception as e:  # noqa: BLE001
+        log.warning("warm_up_failed", extra={"event": "warm_up_failed", "error": repr(e)[:300]})
+
+
+def register_index_profile(services: Services) -> None:
+    with services.db.session() as s:
+        pid = services.index_profile_id
+        if s.get(IndexProfile, pid) is None:
+            s.add(
+                IndexProfile(
+                    id=pid,
+                    embedding_provider=services.embedder.name,
+                    embedding_model=services.embedder.model,
+                    dim=services.embedder.dim,
+                    chunker_version=CHUNKER_VERSION,
+                    parser_version=PARSER_VERSION,
+                    qdrant_collection=services.vector_collection,
+                    opensearch_index=services.keyword_index,
+                )
+            )
+            s.commit()
 
 
 def create_app(
@@ -44,7 +74,7 @@ def create_app(
         runner.recover()
         if start_worker:
             runner.start()
-        loader = asyncio.create_task(asyncio.to_thread(services.embedder.load))
+        loader = asyncio.create_task(_warm_up(services))
         try:
             yield
         finally:
@@ -74,7 +104,7 @@ def create_app(
         expose_headers=["X-Request-Id", "Retry-After", "Content-Range"],
     )
     app.add_middleware(RequestContextMiddleware)
-    for r in (health.router, auth.router, collections.router, documents.router, jobs.router):
+    for r in (health.router, auth.router, collections.router, documents.router, jobs.router, search.router):
         app.include_router(r, prefix=API_PREFIX)
     return app
 
