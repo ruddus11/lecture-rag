@@ -1,0 +1,36 @@
+# 기관·컬렉션·검색 프로필 선언 (설계서 4.4). 비밀이 없으므로 실제 파일(institutions.yaml)도 커밋 대상이다.
+# 실제 파일이 없으면 API 가 이 example 파일로 시드한다.
+institutions:
+  campus_a:
+    name: "캠퍼스 A"
+    collections:
+      - slug: ai_basics
+        name: "인공지능 기초"
+        allowed_roles: [student, admin]
+      - slug: operating_systems
+        name: "운영체제"
+        allowed_roles: [student, admin]
+      - slug: ta_only
+        name: "조교 전용 자료"
+        allowed_roles: [admin]
+    search:
+      mode: hybrid
+      candidate_k: 20
+      context_k: 5
+      rrf_rank_constant: 60
+      max_chunks_per_page: 2
+    answer:
+      provider: openai          # openai | claude | fake, .env 의 ANSWER_PROVIDER 가 우선
+      abstain_on_insufficient_evidence: true
+    upload:
+      max_mb: 20
+      max_pages: 200
+  campus_b:
+    name: "캠퍼스 B"
+    collections:
+      - slug: networks
+        name: "컴퓨터 네트워크"
+        allowed_roles: [student, admin]
+    search: { mode: hybrid, candidate_k: 20, context_k: 5, rrf_rank_constant: 60, max_chunks_per_page: 2 }
+    answer: { provider: openai, abstain_on_insufficient_evidence: true }
+    upload: { max_mb: 20, max_pages: 200 }

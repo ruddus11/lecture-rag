@@ -2,13 +2,15 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import sqlite3
 from typing import Any
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Depends, Request
 from fastapi.responses import JSONResponse
+from sqlalchemy import text
 
+from app.api.deps import current_user
 from app.core.config import CHUNKER_VERSION, PARSER_VERSION
+from app.storage.models import User
 
 router = APIRouter(tags=["health"])
 log = logging.getLogger(__name__)
@@ -35,9 +37,8 @@ async def ready(request: Request) -> JSONResponse:
     errors: list[str] = []
 
     try:
-        conn = sqlite3.connect(settings.data_dir / "app.db", timeout=2)
-        conn.execute("select 1")
-        conn.close()
+        with services.db.engine.connect() as conn:
+            conn.execute(text("select 1"))
         checks["sqlite"] = True
     except Exception:  # noqa: BLE001
         checks["sqlite"] = False
@@ -61,7 +62,7 @@ async def ready(request: Request) -> JSONResponse:
 
 
 @router.get("/meta")
-async def meta(request: Request) -> dict[str, Any]:
+async def meta(request: Request, _: User = Depends(current_user)) -> dict[str, Any]:
     services = request.app.state.services
     s = services.settings
     return {

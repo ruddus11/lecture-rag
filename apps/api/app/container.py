@@ -6,15 +6,19 @@ from dataclasses import dataclass
 from typing import Any
 
 from app.core.config import Settings
+from app.core.ratelimit import RateLimiter
 from app.retrieval.embeddings.base import EmbeddingProvider
+from app.storage.db import Database
 
 
 @dataclass
 class Services:
     settings: Settings
+    db: Database
     embedder: EmbeddingProvider
     vector: Any
     keyword: Any
+    ratelimiter: RateLimiter
 
 
 def build_embedder(settings: Settings) -> EmbeddingProvider:
@@ -29,9 +33,11 @@ def build_services(settings: Settings) -> Services:
 
     return Services(
         settings=settings,
+        db=Database(settings.db_url),
         embedder=build_embedder(settings),
         vector=QdrantStore(settings.qdrant_url, settings.search_engine_timeout_ms),
         keyword=OpenSearchStore(
             settings.opensearch_url, settings.search_engine_timeout_ms, settings.keyword_analyzer
         ),
+        ratelimiter=RateLimiter(settings),
     )

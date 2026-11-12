@@ -1,0 +1,14 @@
+# 데모 사용자. 비밀번호 원문은 README 에만 적는다. 해시 생성: uv run python -m scripts.hash_password '<비밀번호>'
+users:
+  - username: a_admin
+    password_hash: "$2b$12$GIXe2I4e8sQQFLIhe8Y0ku5qbxjRn1VTs8TwwcUxmmMTTtSYtavuu"
+    institution: campus_a
+    role: admin
+  - username: a_student
+    password_hash: "$2b$12$r9qVrCWHdfaZh/SzYn.EDe1VgVoTlluMy31y3zi/oQUS1vom.7rwu"
+    institution: campus_a
+    role: student
+  - username: b_student
+    password_hash: "$2b$12$WDlGvQCLZt6hHGSW.05iWOHQa7v/FRprcM3fF14ZnPWr3gnwmxFGG"
+    institution: campus_b
+    role: student

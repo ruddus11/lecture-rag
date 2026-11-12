@@ -10,9 +10,12 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.routes import health
+from app.api.routes import auth, collections, health
 from app.container import Services, build_services
 from app.core.config import Settings, get_settings
+from app.core.errors import install_error_handlers
+from app.core.logging import RequestContextMiddleware, setup_logging
+from app.storage.seed import seed_from_files
 
 API_PREFIX = "/api/v1"
 log = logging.getLogger(__name__)
@@ -23,12 +26,15 @@ def create_app(
     services_factory: Callable[[Settings], Services] = build_services,
 ) -> FastAPI:
     settings = settings or get_settings()
-    logging.basicConfig(level=settings.log_level)
+    setup_logging(settings.log_level, settings.secret_values())
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         settings.data_dir.mkdir(parents=True, exist_ok=True)
         services = services_factory(settings)
+        services.db.create_all()
+        if settings.seed_on_start:
+            seed_from_files(services.db, settings.institutions_file, settings.users_file)
         app.state.services = services
         loader = asyncio.create_task(asyncio.to_thread(services.embedder.load))
         try:
@@ -39,6 +45,7 @@ def create_app(
                 close = getattr(c, "close", None)
                 if close:
                     await close()
+            services.db.dispose()
 
     docs = settings.expose_docs
     app = FastAPI(
@@ -49,6 +56,7 @@ def create_app(
         openapi_url=f"{API_PREFIX}/openapi.json" if docs else None,
         redoc_url=None,
     )
+    install_error_handlers(app)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origin_list,
@@ -56,7 +64,9 @@ def create_app(
         allow_headers=["Authorization", "Content-Type", "Idempotency-Key", "Range", "X-Request-Id"],
         expose_headers=["X-Request-Id", "Retry-After", "Content-Range"],
     )
-    app.include_router(health.router, prefix=API_PREFIX)
+    app.add_middleware(RequestContextMiddleware)
+    for r in (health.router, auth.router, collections.router):
+        app.include_router(r, prefix=API_PREFIX)
     return app
 
 
