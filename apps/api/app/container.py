@@ -2,13 +2,18 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Any
+from dataclasses import dataclass, field
+from typing import TYPE_CHECKING, Any
 
 from app.core.config import Settings
 from app.core.ratelimit import RateLimiter
+from app.documents.chunker import Chunker
 from app.retrieval.embeddings.base import EmbeddingProvider
 from app.storage.db import Database
+from app.storage.files import FileStore
+
+if TYPE_CHECKING:
+    from app.documents.jobs import JobRunner
 
 
 @dataclass
@@ -19,6 +24,13 @@ class Services:
     vector: Any
     keyword: Any
     ratelimiter: RateLimiter
+    files: FileStore = field(init=False)
+    chunker: Chunker = field(init=False)
+    runner: JobRunner | None = None
+
+    def __post_init__(self) -> None:
+        self.files = FileStore(self.settings.data_dir)
+        self.chunker = Chunker()
 
 
 def build_embedder(settings: Settings) -> EmbeddingProvider:

@@ -8,8 +8,8 @@ from dataclasses import dataclass
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.core.errors import collection_not_found
-from app.storage.models import Collection, User
+from app.core.errors import AppError, collection_not_found, document_not_found
+from app.storage.models import Collection, Document, User
 
 
 @dataclass(frozen=True)
@@ -55,3 +55,17 @@ def check_collection_access(db: Session, user: User, collection_id: str) -> Coll
     if col is None or col.institution_id != user.institution_id or user.role not in (col.allowed_roles or []):
         raise collection_not_found()
     return col
+
+
+def check_document_access(
+    db: Session, user: User, document_id: str, include_deleting: bool = True
+) -> Document:
+    """문서 접근 확인. 허용 밖·삭제 완료 문서는 404 (타 기관 존재를 노출하지 않음)."""
+    doc = db.get(Document, document_id)
+    if doc is None or doc.status == "deleted" or (not include_deleting and doc.status == "deleting"):
+        raise document_not_found()
+    try:
+        check_collection_access(db, user, doc.collection_id)
+    except AppError:
+        raise document_not_found() from None
+    return doc

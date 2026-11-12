@@ -82,6 +82,29 @@ class Api:
         assert r.status_code == 200, r.text
         return {c["slug"]: c["id"] for c in r.json()["items"]}
 
+    async def upload(
+        self, username: str, collection_id: str, path: Path, key: str | None = None, name: str | None = None
+    ) -> httpx.Response:
+        headers = await self.h(username)
+        if key:
+            headers["Idempotency-Key"] = key
+        return await self.c.post(
+            f"/api/v1/collections/{collection_id}/documents",
+            headers=headers,
+            files={"file": (name or path.name, path.read_bytes(), "application/pdf")},
+        )
+
+    async def drain(self) -> int:
+        assert self.services.runner is not None
+        return await self.services.runner.drain()
+
+
+@pytest.fixture(scope="session")
+def pdfs(tmp_path_factory: pytest.TempPathFactory) -> dict[str, Path]:
+    from tests.fixtures.make_pdfs import make_all
+
+    return make_all(tmp_path_factory.mktemp("pdfs"))
+
 
 @pytest.fixture
 def settings_overrides() -> dict[str, Any]:
@@ -98,7 +121,7 @@ async def api(
     tmp_path: Path, settings_overrides: dict[str, Any], service_parts: dict[str, Any]
 ) -> AsyncIterator[Api]:
     settings = make_settings(tmp_path, **settings_overrides)
-    app = create_app(settings, services_factory=make_services_factory(**service_parts))
+    app = create_app(settings, services_factory=make_services_factory(**service_parts), start_worker=False)
     async with app.router.lifespan_context(app):
         transport = httpx.ASGITransport(app=app)
         async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
