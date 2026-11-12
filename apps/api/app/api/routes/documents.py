@@ -20,9 +20,9 @@ from app.container import Services
 from app.core.config import UPLOAD_MAX_MB
 from app.core.errors import AppError, document_not_found
 from app.core.scope import check_collection_access, check_document_access
-from app.schemas.documents import DocumentList, DocumentOut, UploadAccepted
+from app.schemas.documents import DocumentList, DocumentOut, JobAccepted, RetryRequest, UploadAccepted
 from app.storage.files import FileTooLarge
-from app.storage.models import Chunk, Document, IdempotencyKey, IngestionJob, User, utcnow
+from app.storage.models import Chunk, Collection, Document, IdempotencyKey, IngestionJob, User, utcnow
 
 router = APIRouter(tags=["documents"])
 log = logging.getLogger(__name__)
@@ -243,3 +243,79 @@ async def get_document_file(
         media_type="application/pdf",
         headers=headers,
     )
+
+
+@router.delete("/documents/{document_id}", status_code=202)
+async def delete_document(
+    document_id: str,
+    user: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+    services: Services = Depends(get_services),
+) -> JobAccepted:
+    doc = db.get(Document, document_id)
+    if doc is None:
+        raise document_not_found()
+    try:
+        check_collection_access(db, user, doc.collection_id)
+    except AppError:
+        raise document_not_found() from None
+    if doc.status in ("deleting", "deleted"):
+        raise AppError(409, "invalid_state", "이미 삭제 중인 문서입니다.")
+    doc.status = "deleting"
+    doc.deleted_at = utcnow()
+    col = db.get(Collection, doc.collection_id)
+    assert col is not None
+    col.version += 1
+    job = IngestionJob(
+        id=str(uuid.uuid4()),
+        document_id=doc.id,
+        kind="delete",
+        target_version=doc.active_version,
+        status="queued",
+    )
+    db.add(job)
+    db.commit()
+    services.invalidate_caches()
+    if services.runner:
+        services.runner.notify()
+    return JobAccepted(job_id=job.id, status="deleting")
+
+
+@router.post("/documents/{document_id}/retry", status_code=202)
+async def retry_document(
+    document_id: str,
+    body: RetryRequest,
+    user: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+    services: Services = Depends(get_services),
+) -> JobAccepted:
+    doc = check_document_access(db, user, document_id)
+    if doc.active_version != body.expected_version:
+        raise AppError(409, "version_conflict", "문서 버전이 변경되었습니다.")
+    pending = db.scalar(
+        select(IngestionJob.id).where(
+            IngestionJob.document_id == doc.id, IngestionJob.status.in_(["queued", "processing"])
+        )
+    )
+    if doc.status not in ("failed", "deleting") or pending:
+        raise AppError(409, "invalid_state", "재시도할 수 없는 상태입니다.")
+    latest = db.scalar(
+        select(func.max(IngestionJob.target_version)).where(IngestionJob.document_id == doc.id)
+    )
+    kind = "delete" if doc.status == "deleting" else "ingest"
+    job = IngestionJob(
+        id=str(uuid.uuid4()),
+        document_id=doc.id,
+        kind=kind,
+        target_version=max(latest or 0, doc.active_version) + 1,
+        status="queued",
+    )
+    if kind == "ingest":
+        doc.status = "queued"
+        doc.error_code = doc.error_message = None
+    db.add(job)
+    db.commit()
+    services.invalidate_caches()
+    if services.runner:
+        services.runner.notify()
+    return JobAccepted(job_id=job.id, status="queued")

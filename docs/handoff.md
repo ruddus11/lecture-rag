@@ -6,7 +6,7 @@
 
 ## 미완료
 
-M8 삭제·재시도·캐시 골격 및 기관 격리 회귀. Docker 실기동과 유료 provider smoke는 미검증.
+M8 fresh compose 검증과 v0.1 태그 미완료. Docker 실기동과 유료 provider smoke는 미검증.
 
 ## 마지막 실행 명령·결과
 
@@ -50,7 +50,7 @@ sqlite> select status, stage, attempts from ingestion_jobs → processing|embedd
 
 ## 다음 한 작업
 
-M8 삭제·재시도 API와 워커 구현 및 회귀 검증.
+Docker 환경에서 fresh compose 기동→ready→업로드·질문·PDF·삭제·재시도 흐름 확인 후 v0.1 태그.
 
 ### M7 웹 흐름 (2026-11-12, Chrome headless + 실제 로컬 엔진)
 
@@ -61,3 +61,15 @@ M8 삭제·재시도 API와 워커 구현 및 회귀 검증.
 계정 변경 중 응답을 지연시킨 회귀 테스트로 기존 문서 캐시 노출을 재현(RED)하고 인증 세션마다 QueryClient를 교체하여 수정했다. 브라우저 최초 실패는 로그인 입력 시 개발서버 갱신으로 아이디가 비워진 것으로 확인했으며 networkidle 후 실제 키 입력으로 안정화했다.
 
 M7 최종: 웹 13 tests passed, typecheck·eslint·build 통과. `.tools/bin/docker-compose --env-file .env.example config --quiet` 통과.
+
+### M8 구현·검증 (2026-11-12)
+
+삭제는 즉시 deleting으로 차단하고 인덱스→파일→chunks를 정리한다. 실패한 삭제는 재시도할 수 있으며 재시작 복구도 검증했다. 수집 대기 중 삭제 시 상태 역전과 LLM 생성 대기 중 삭제 시 오래된 답변 노출을 각각 RED→GREEN 회귀 테스트로 수정했다.
+
+`uv run pytest -m integration` → 5 passed (실제 로컬 Qdrant/OpenSearch, fake 임베딩). API 삭제 경로를 통해 ingest→3모드→논리 삭제 직후 차단→워커 물리 삭제→0건을 검증했고, retry 후 버전 1 양쪽 엔진 0건·버전 2 적재를 확인했다. aiohttp의 Python 3.12.13 관련 DeprecationWarning 5개는 실패가 아니다.
+
+웹 13 tests, typecheck·eslint·build 통과. `docker compose config`(standalone) 통과. Docker daemon 부재로 fresh compose와 v0.1 태그를 미완료로 남긴다. 설계서 16장 완료 게이트에 따라 M9 이후는 진행하지 않는다.
+
+최종 리뷰 수정: PDF 401은 인증 해제, 503은 표준 오류 요청 ID·재시도 표시. 업로드 네트워크 오류 재시도는 동일 Idempotency-Key 유지. DELETE는 status=deleting, 동일 기관 권한자의 반복 삭제는 409, 타 기관은 404. 최종 웹 16 tests passed, typecheck·eslint·build 통과. API 122 passed. 최종 UI 브라우저 재검증 스크린샷은 `screenshots/m8/`이며 기존 M7 API 프로세스를 사용했다. M8 새 서버 코드는 API/integration에서 별도 검증했다.
+
+M8 최종 검증: API 122 passed(39.44초), 실제 엔진 integration 5 passed(14.27초), 웹 16 passed. ruff check·format(94 files)·mypy·typecheck·eslint·build·compose config 통과. Docker fresh 검증 미실행.

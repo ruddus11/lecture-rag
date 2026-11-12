@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
+from app.core.cache import CacheStore
 from app.core.config import CHUNKER_VERSION, OPENSEARCH_INDEX, PARSER_VERSION, Settings
 from app.core.ratelimit import RateLimiter
 from app.documents.chunker import Chunker
@@ -28,6 +29,7 @@ class Services:
     vector: Any
     keyword: Any
     ratelimiter: RateLimiter
+    cache: CacheStore = field(init=False)
     files: FileStore = field(init=False)
     chunker: Chunker = field(init=False)
     doc_embedder: EmbeddingFileCache = field(init=False)
@@ -40,6 +42,9 @@ class Services:
         from app.generation.service import AnswerService
         from app.retrieval.service import SearchService
 
+        self.cache = CacheStore(
+            self.settings.cache_embed_ttl_seconds, self.settings.cache_retrieval_ttl_seconds
+        )
         self.files = FileStore(self.settings.data_dir)
         self.chunker = Chunker()
         self.doc_embedder = EmbeddingFileCache(self.settings.emb_cache_dir, self.embedder)

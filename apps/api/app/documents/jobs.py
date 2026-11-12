@@ -176,6 +176,12 @@ class JobRunner:
                 if job is None:
                     return None
                 doc = s.get(Document, job.document_id)
+                if job.kind == "ingest" and (doc is None or doc.deleted_at is not None):
+                    job.status = "failed"
+                    job.error_code = "cancelled"
+                    job.finished_at = utcnow()
+                    s.commit()
+                    continue
                 if job.attempts >= job.max_attempts:
                     job.status = "failed"
                     job.error_code = job.error_code or "max_attempts_exceeded"

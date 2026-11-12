@@ -15,9 +15,10 @@ from typing import TYPE_CHECKING, Any
 from sqlalchemy.orm import Session
 
 from app.core.errors import AppError
+from app.core.scope import resolve_scope
 from app.generation.base import AnswerProvider, Evidence, ProviderError, ProviderResult
 from app.generation.citations import Verdict, verify
-from app.retrieval.service import RetrievedHit, SearchResult
+from app.retrieval.service import RetrievedHit, SearchResult, ledger_check
 from app.storage.models import User
 
 if TYPE_CHECKING:
@@ -98,6 +99,19 @@ class AnswerService:
                 timings_ms=timings,
             )
             base.update(kw)
+            # 생성 대기 중 삭제·권한 변경이 가능하므로 응답 직전 새 원장으로 다시 검사한다.
+            with self.s.db.session() as fresh:
+                scope = resolve_scope(fresh, user)
+                valid, _ = ledger_check(fresh, scope, [h.fused for h in hits])
+            allowed = {f.chunk.chunk_id for f in valid}
+            if len(allowed) != len(hits):
+                base.update(
+                    hits=[h for h in hits if h.fused.chunk.chunk_id in allowed],
+                    abstained=True,
+                    abstain_reason="no_evidence",
+                    answer="",
+                    citations=[],
+                )
             return AnswerOutcome(**base)
 
         if not hits:  # 7.3-8: LLM 을 부르지 않는다

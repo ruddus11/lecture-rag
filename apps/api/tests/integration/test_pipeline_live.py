@@ -28,8 +28,15 @@ async def test_ingest_three_modes_then_delete(it_api, pdfs):
     assert body["modes_used"] == ["keyword", "vector"]
     assert (await it_api.search("b_student", Q, mode="hybrid")).json()["hits"] == []
 
-    await s.vector.delete_document(s.vector_collection, up["document_id"])
-    await s.keyword.delete_document(up["document_id"])
+    deleted = await it_api.c.delete(
+        f"/api/v1/documents/{up['document_id']}", headers=await it_api.h("a_admin")
+    )
+    assert deleted.status_code == 202
+    # 두 엔진에 데이터가 남아 있는 동안에도 차단한다.
+    assert (await it_api.search("a_student", Q, mode="hybrid")).json()["hits"] == []
+    await it_api.drain()
+    assert await s.vector.count_document(s.vector_collection, up["document_id"]) == 0
+    assert await s.keyword.count_document(up["document_id"]) == 0
     for mode in ("keyword", "vector", "hybrid"):
         assert (await it_api.search("a_student", Q, mode=mode)).json()["hits"] == []
 
@@ -60,3 +67,23 @@ async def test_nori_analyzer_live(it_api):
     assert await kw.has_nori()
     assert await kw.analyze("TCP 혼잡 제어") == ["tcp", "혼잡", "제어"]
     assert "수" not in await kw.analyze("프로세스를 종료할 수 있다")  # NNB 제거 (ADR-004)
+
+
+async def test_retry_purges_old_versions_live(it_api, pdfs):
+    from app.storage.models import Document
+
+    up = await it_api.ingest("a_admin", "operating_systems", pdfs["korean_text.pdf"])
+    did = up["document_id"]
+    with it_api.services.db.session() as db:
+        db.get(Document, did).status = "failed"
+        db.commit()
+    r = await it_api.c.post(
+        f"/api/v1/documents/{did}/retry", headers=await it_api.h("a_admin"), json={"expected_version": 1}
+    )
+    assert r.status_code == 202
+    await it_api.drain()
+    s = it_api.services
+    assert await s.vector.count_document(s.vector_collection, did, 1) == 0
+    assert await s.keyword.count_document(did, 1) == 0
+    assert await s.vector.count_document(s.vector_collection, did, 2) > 0
+    assert await s.keyword.count_document(did, 2) > 0

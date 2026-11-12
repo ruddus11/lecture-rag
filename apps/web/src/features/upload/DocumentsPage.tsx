@@ -95,6 +95,7 @@ export function DocumentsPage() {
   const cols = useCollections()
   const [collectionId, setCollectionId] = useState<string | null>(null)
   const [file, setFile] = useState<File | null>(null)
+  const uploadKey = useRef(crypto.randomUUID())
   const [jobs, setJobs] = useState<string[]>([])
   const active = collectionId ?? cols.data?.[0]?.id ?? null
 
@@ -116,12 +117,13 @@ export function DocumentsPage() {
       return request<UploadAccepted>(`/collections/${active}/documents`, {
         method: 'POST',
         body,
-        headers: { 'Idempotency-Key': crypto.randomUUID() },
+        headers: { 'Idempotency-Key': uploadKey.current },
       })
     },
     onSuccess: (r) => {
       setJobs((j) => [r.job_id, ...j])
       setFile(null)
+      uploadKey.current = crypto.randomUUID()
       refresh()
     },
   })
@@ -142,13 +144,13 @@ export function DocumentsPage() {
 
       {isAdmin && (
         <form className={styles.upload} onSubmit={onSubmit}>
-          <input type="file" accept="application/pdf,.pdf" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
+          <input type="file" accept="application/pdf,.pdf" onChange={(e) => { setFile(e.target.files?.[0] ?? null); uploadKey.current = crypto.randomUUID() }} />
           <button type="submit" disabled={!file || tooBig || upload.isPending}>
             {upload.isPending ? '올리는 중…' : '업로드'}
           </button>
           <span className={styles.muted}>텍스트 PDF, 최대 {MAX_MB}MB·200쪽. 스캔 PDF는 지원하지 않습니다.</span>
           {tooBig && <span className={styles.reason}>파일이 {MAX_MB}MB를 넘습니다.</span>}
-          {upload.error != null && <ErrorPanel error={upload.error} />}
+          {upload.error != null && <ErrorPanel error={upload.error} onRetry={() => { if (file) upload.mutate(file) }} />}
         </form>
       )}
 
