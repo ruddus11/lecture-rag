@@ -1,0 +1,44 @@
+:root {
+  --bg: #f7f7f5;
+  --surface: #ffffff;
+  --text: #1d1f21;
+  --muted: #6b7075;
+  --line: #dcdcd7;
+  --accent: #1f5f8b;
+  --accent-fg: #ffffff;
+  --ok-bg: #e5f2e8;
+  --ok-fg: #1f6a34;
+  --bad-bg: #fbeaea;
+  --bad-fg: #8a1f1f;
+  --bad-line: #e8b9b9;
+  --wait-bg: #eef1f5;
+  --wait-fg: #3a4a5c;
+  font-family: system-ui, -apple-system, 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
+  font-size: 15px;
+  line-height: 1.55;
+  color: var(--text);
+  background: var(--bg);
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+}
+button {
+  font: inherit;
+  cursor: pointer;
+}
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+input,
+textarea,
+select {
+  font: inherit;
+}
+code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.9em;
+}

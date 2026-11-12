@@ -1,0 +1,133 @@
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.notice {
+  margin: 0;
+  padding: 8px 12px;
+  border-radius: 6px;
+  background: var(--wait-bg);
+  color: var(--wait-fg);
+  font-size: 14px;
+}
+.abstain {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--muted);
+  border-radius: 6px;
+  padding: 14px 16px;
+}
+.abstain h3 {
+  margin: 0 0 6px;
+  font-size: 16px;
+}
+.abstain p {
+  margin: 0 0 4px;
+}
+.answer {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 16px;
+}
+.answerText {
+  margin: 0 0 12px;
+  white-space: pre-wrap;
+}
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 10px;
+}
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  text-align: left;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  border-radius: 6px;
+  padding: 10px 12px;
+}
+.card:hover {
+  border-color: var(--accent);
+}
+.cardHead {
+  display: flex;
+  gap: 6px;
+  align-items: baseline;
+  font-size: 13px;
+}
+.idx {
+  color: var(--accent);
+  font-weight: 600;
+}
+.title {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.page {
+  margin-left: auto;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.quote {
+  font-size: 14px;
+  color: var(--text);
+}
+.hits summary {
+  cursor: pointer;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+.footer,
+.muted {
+  color: var(--muted);
+  font-size: 12px;
+  margin: 0;
+}
+.backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgb(0 0 0 / 0.4);
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  z-index: 10;
+}
+.modal {
+  background: var(--surface);
+  border-radius: 8px;
+  max-width: 820px;
+  width: 100%;
+  max-height: 100%;
+  overflow: auto;
+  padding: 14px 18px;
+}
+.modalHead {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.modalHead button,
+.pager button {
+  border: 1px solid var(--line);
+  background: var(--surface);
+  border-radius: 6px;
+  padding: 4px 12px;
+}
+.viewer {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: center;
+}
+.pager {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}

@@ -1,0 +1,80 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.form textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  resize: vertical;
+  background: var(--surface);
+}
+.row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.segment {
+  display: inline-flex;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.seg,
+.segOn {
+  border: 0;
+  padding: 5px 12px;
+  background: var(--surface);
+}
+.segOn {
+  background: var(--accent);
+  color: var(--accent-fg);
+}
+.counter {
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.submit {
+  border: 0;
+  border-radius: 6px;
+  padding: 7px 16px;
+  background: var(--accent);
+  color: var(--accent-fg);
+  font-weight: 600;
+}
+.loading {
+  color: var(--muted);
+  margin: 0;
+}
+.muted {
+  color: var(--muted);
+}
+.empty p {
+  color: var(--muted);
+  margin: 0 0 6px;
+  font-size: 13px;
+}
+.empty ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.empty button {
+  border: 1px solid var(--line);
+  background: var(--surface);
+  border-radius: 6px;
+  padding: 6px 12px;
+  text-align: left;
+}

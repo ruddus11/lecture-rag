@@ -2,15 +2,15 @@
 
 ## 되는 흐름
 
-(마일스톤 진행에 따라 갱신)
+로그인→업로드→ready→질문→근거 카드→인증 PDF 페이지 뷰어, 보류 화면까지 로컬 실제 엔진에서 확인.
 
 ## 미완료
 
-(마일스톤 진행에 따라 갱신)
+M8 삭제·재시도·캐시 골격 및 기관 격리 회귀. Docker 실기동과 유료 provider smoke는 미검증.
 
 ## 마지막 실행 명령·결과
 
-(마일스톤 진행에 따라 갱신)
+M7: API pytest 112 passed, ruff·mypy 통과. 웹 최종 검증은 아래 M7 로그 참조.
 
 ## 실행 로그
 
@@ -50,4 +50,14 @@ sqlite> select status, stage, attempts from ingestion_jobs → processing|embedd
 
 ## 다음 한 작업
 
-(마일스톤 진행에 따라 갱신)
+M8 삭제·재시도 API와 워커 구현 및 회귀 검증.
+
+### M7 웹 흐름 (2026-11-12, Chrome headless + 실제 로컬 엔진)
+
+`cd apps/web && node e2e/browser_flow.mjs ../../data/samples/os_week3_process.pdf ../../docs/screenshots/m7` 통과: login_ok → upload_ready(2초) → answer_ok → viewer_ok(3 / 3쪽) → abstain_ok.
+
+스크린샷: [로그인](screenshots/m7/01_login.png), [업로드 완료](screenshots/m7/02_documents_ready.png), [답변](screenshots/m7/03_answer.png), [PDF 페이지](screenshots/m7/04_pdf_page.png), [보류](screenshots/m7/05_abstain.png).
+
+계정 변경 중 응답을 지연시킨 회귀 테스트로 기존 문서 캐시 노출을 재현(RED)하고 인증 세션마다 QueryClient를 교체하여 수정했다. 브라우저 최초 실패는 로그인 입력 시 개발서버 갱신으로 아이디가 비워진 것으로 확인했으며 networkidle 후 실제 키 입력으로 안정화했다.
+
+M7 최종: 웹 13 tests passed, typecheck·eslint·build 통과. `.tools/bin/docker-compose --env-file .env.example config --quiet` 통과.

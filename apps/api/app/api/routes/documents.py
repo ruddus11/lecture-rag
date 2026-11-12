@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 import logging
+import re
 import uuid
 from datetime import timedelta
 from typing import Literal
+from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, File, Header, UploadFile
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from sqlalchemy import delete, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -16,7 +18,7 @@ from sqlalchemy.orm import Session
 from app.api.deps import current_user, get_db, get_services, require_admin
 from app.container import Services
 from app.core.config import UPLOAD_MAX_MB
-from app.core.errors import AppError
+from app.core.errors import AppError, document_not_found
 from app.core.scope import check_collection_access, check_document_access
 from app.schemas.documents import DocumentList, DocumentOut, UploadAccepted
 from app.storage.files import FileTooLarge
@@ -175,3 +177,69 @@ async def get_document(
     document_id: str, user: User = Depends(current_user), db: Session = Depends(get_db)
 ) -> DocumentOut:
     return document_out(db, check_document_access(db, user, document_id))
+
+
+_RANGE = re.compile(r"^bytes=(\d*)-(\d*)$")
+
+
+def _parse_range(header: str | None, size: int) -> tuple[int, int] | None:
+    """단일 범위만 지원한다. 형식이 틀리면 None(전체 200), 만족 불가면 416."""
+    if not header:
+        return None
+    m = _RANGE.match(header.strip())
+    if not m or (m.group(1) == "" and m.group(2) == ""):
+        return None
+    if m.group(1) == "":  # bytes=-N (끝에서 N 바이트)
+        n = int(m.group(2))
+        if n == 0:
+            raise AppError(416, "range_not_satisfiable", "요청한 범위를 만족할 수 없습니다.")
+        return max(0, size - n), size - 1
+    start = int(m.group(1))
+    end = int(m.group(2)) if m.group(2) else size - 1
+    if start >= size or end < start:
+        raise AppError(
+            416,
+            "range_not_satisfiable",
+            "요청한 범위를 만족할 수 없습니다.",
+            headers={"Content-Range": f"bytes */{size}"},
+        )
+    return start, min(end, size - 1)
+
+
+@router.get("/documents/{document_id}/file", response_class=StreamingResponse)
+async def get_document_file(
+    document_id: str,
+    range_header: str | None = Header(default=None, alias="Range"),
+    user: User = Depends(current_user),
+    db: Session = Depends(get_db),
+    services: Services = Depends(get_services),
+) -> StreamingResponse:
+    """요청마다 scope 를 다시 계산하고 ready 문서만 준다 (설계서 9.2 규칙 6)."""
+    doc = check_document_access(db, user, document_id, include_deleting=False)
+    if doc.status != "ready":
+        raise document_not_found()
+    try:
+        path = services.files.resolve_stored(doc.storage_path)
+        size = path.stat().st_size
+    except (ValueError, OSError):
+        raise document_not_found() from None
+    quoted = quote(doc.original_filename, safe="")
+    headers = {
+        "Accept-Ranges": "bytes",
+        "Content-Disposition": f"inline; filename*=UTF-8''{quoted}",
+        "Cache-Control": "private, no-store",
+        "X-Content-Type-Options": "nosniff",
+    }
+    rng = _parse_range(range_header, size)
+    start, end = rng if rng else (0, size - 1)
+    headers["Content-Length"] = str(end - start + 1)
+    status = 200
+    if rng:
+        status = 206
+        headers["Content-Range"] = f"bytes {start}-{end}/{size}"
+    return StreamingResponse(
+        services.files.open_range(doc.storage_path, start, end),
+        status_code=status,
+        media_type="application/pdf",
+        headers=headers,
+    )

@@ -1,0 +1,76 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.page h2 {
+  margin: 0;
+}
+.upload {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px;
+}
+.upload button,
+.actions button {
+  border: 1px solid var(--line);
+  background: var(--surface);
+  border-radius: 6px;
+  padding: 5px 12px;
+}
+.upload button[type='submit'] {
+  background: var(--accent);
+  color: var(--accent-fg);
+  border-color: var(--accent);
+}
+.muted {
+  color: var(--muted);
+  font-size: 13px;
+}
+.reason {
+  color: var(--bad-fg);
+  font-size: 13px;
+}
+.jobs {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.job {
+  font-size: 14px;
+}
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--surface);
+  border: 1px solid var(--line);
+}
+.table th,
+.table td {
+  text-align: left;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--line);
+  vertical-align: top;
+}
+.table th {
+  font-size: 13px;
+  color: var(--muted);
+  font-weight: 500;
+}
+.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.actions {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+}
