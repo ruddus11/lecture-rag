@@ -73,3 +73,7 @@ M7 최종: 웹 13 tests passed, typecheck·eslint·build 통과. `.tools/bin/doc
 최종 리뷰 수정: PDF 401은 인증 해제, 503은 표준 오류 요청 ID·재시도 표시. 업로드 네트워크 오류 재시도는 동일 Idempotency-Key 유지. DELETE는 status=deleting, 동일 기관 권한자의 반복 삭제는 409, 타 기관은 404. 최종 웹 16 tests passed, typecheck·eslint·build 통과. API 122 passed. 최종 UI 브라우저 재검증 스크린샷은 `screenshots/m8/`이며 기존 M7 API 프로세스를 사용했다. M8 새 서버 코드는 API/integration에서 별도 검증했다.
 
 M8 최종 검증: API 122 passed(39.44초), 실제 엔진 integration 5 passed(14.27초), 웹 16 passed. ruff check·format(94 files)·mypy·typecheck·eslint·build·compose config 통과. Docker fresh 검증 미실행.
+
+## M9 이어가기 (2026-11-12)
+
+Docker CLI 없음 → fresh compose와 v0.1 보류(ADR-010). 로컬 API 8010 캐시 off, 실제 bge-m3/Qdrant/Nori로 dev 30문항×3모드 실행, 실패/skip 0. CSV는 evaluation/results. pytest 127 passed, 5 deselected; npm build·standalone compose config 통과. 근거 재확인이 반복 방문의 핵심이며 평가도 정답 페이지 검색을 우선한다. test 10문항 동결. 수동 인용 의미 평가는 남음.
