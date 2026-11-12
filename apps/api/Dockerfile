@@ -18,6 +18,7 @@ COPY apps/api/app ./app
 COPY apps/api/scripts ./scripts
 COPY evaluation ./evaluation
 COPY config ./config
+COPY infra/opensearch/index-chunks.json ./infra/opensearch/index-chunks.json
 
 RUN useradd --create-home --uid 10001 app \
  && mkdir -p /data /home/app/.cache/huggingface /app/evaluation/results \

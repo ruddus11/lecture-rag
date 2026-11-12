@@ -8,7 +8,9 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Coroutine
 from pathlib import Path
+from typing import Any
 
 from sqlalchemy import delete, func, select
 
@@ -112,8 +114,6 @@ async def run_ingest(ctx: JobContext) -> None:
 
 async def _index_keyword(ctx: JobContext, document_id: str, version: int, docs: list[ChunkDoc]) -> None:
     kw = ctx.services.keyword
-    if not hasattr(kw, "bulk_index"):  # M5 이전 어댑터
-        return
     try:
         await kw.ensure_index()
         await kw.bulk_index(docs)
@@ -168,13 +168,20 @@ def _activate(ctx: JobContext, document_id: str, version: int, page_count: int) 
 async def _purge_old_versions(ctx: JobContext, document_id: str, version: int) -> None:
     """활성화 뒤 두 엔진에서 document_id AND document_version < version 삭제 (실패는 로그만)."""
     services = ctx.services
-    try:
-        await services.vector.delete_document(services.vector_collection, document_id, below_version=version)
-        kw = services.keyword
-        if hasattr(kw, "delete_document"):
-            await kw.delete_document(document_id, below_version=version)
-    except Exception:  # noqa: BLE001
-        log.exception("purge_old_versions_failed", extra={"event": "purge_old_versions_failed"})
+    await _best_effort(
+        "purge_old_versions",
+        services.vector.delete_document(services.vector_collection, document_id, below_version=version),
+        services.keyword.delete_document(document_id, below_version=version),
+    )
+
+
+async def _best_effort(event: str, *coros: Coroutine[Any, Any, None]) -> None:
+    """엔진별로 따로 시도한다. 한쪽 실패가 다른 쪽 정리를 막지 않는다."""
+    for c in coros:
+        try:
+            await c
+        except Exception:  # noqa: BLE001
+            log.exception(event, extra={"event": f"{event}_failed"})
 
 
 async def cleanup_failed_ingest(ctx: JobContext) -> None:
@@ -192,12 +199,14 @@ async def cleanup_failed_ingest(ctx: JobContext) -> None:
                 return
             s.execute(delete(Chunk).where(Chunk.document_id == document_id, Chunk.index_version == version))
             s.commit()
-        await services.vector.delete_document(services.vector_collection, document_id, version=version)
-        kw = services.keyword
-        if hasattr(kw, "delete_document"):
-            await kw.delete_document(document_id, version=version)
     except Exception:  # noqa: BLE001
         log.exception("cleanup_failed", extra={"event": "cleanup_failed", "job_id": ctx.job_id})
+        return
+    await _best_effort(
+        "cleanup",
+        services.vector.delete_document(services.vector_collection, document_id, version=version),
+        services.keyword.delete_document(document_id, version=version),
+    )
 
 
 def count_chunks(ctx: JobContext, document_id: str, version: int) -> int:

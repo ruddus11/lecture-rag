@@ -1,0 +1,15 @@
+health degraded False
+hybrid degraded= True ['vector'] True
+hybrid degraded= True ['vector'] True
+hybrid degraded= True ['vector'] True
+hybrid degraded= True ['vector'] True
+hybrid degraded= True ['vector'] True
+{'event': 'summary', 'mode': 'hybrid', 'hit_at_5': '5/5'}
+keyword HTTP 503 search_unavailable
+keyword HTTP 503 search_unavailable
+keyword HTTP 503 search_unavailable
+keyword HTTP 503 search_unavailable
+keyword HTTP 503 search_unavailable
+{'event': 'summary', 'mode': 'keyword', 'hit_at_5': '0/5'}
+{"event": "health", "status": "ok", "checks": {"sqlite": true, "qdrant": true, "opensearch": true, "nori": true, "embedding_model": true, "qdrant_collection": "chunks__bge_m3__1024", "qdrant_payload_i
+{"event": "summary", "mode": "hybrid", "hit_at_5": "5/5"}

@@ -14,19 +14,23 @@ evaluation/private/
 # python
 __pycache__/
 *.pyc
-.venv/
+.venv
 .pytest_cache/
 .ruff_cache/
 .mypy_cache/
 
 # node
-node_modules/
+node_modules
 dist/
 coverage/
 
 # local toolchains and caches (uv python, uv cache, npm cache)
-.tools/
+.tools
 
 # os
 .DS_Store
 .pytest_tmp/
+
+# iCloud 동기화 제외용 실제 폴더 (심볼릭 링크 .tools, .venv, node_modules 가 가리킴)
+*.nosync
+.qdrant-initialized

@@ -9,6 +9,7 @@ from __future__ import annotations
 import os
 import uuid
 from collections.abc import AsyncIterator
+from typing import Any
 
 import pytest
 
@@ -25,3 +26,36 @@ async def qdrant() -> AsyncIterator[tuple[QdrantStore, str]]:
     yield store, name
     await store.client.delete_collection(name)
     await store.close()
+
+
+@pytest.fixture
+async def it_api(tmp_path) -> AsyncIterator[Any]:
+    """실제 Qdrant·OpenSearch 에 붙은 앱. 임베딩만 fake(빠름). 테스트 전용 인덱스·컬렉션을 쓰고 지운다."""
+    import httpx
+
+    from app.main import create_app
+    from app.retrieval.keyword import OpenSearchStore
+    from tests.conftest import Api, make_services_factory, make_settings
+    from tests.fakes import FakeEmbedder
+
+    tag = uuid.uuid4().hex[:8]
+    vector = QdrantStore(QDRANT_URL, 5000)
+    keyword = OpenSearchStore(OPENSEARCH_URL, 5000, "korean")
+    keyword.index = f"it_chunks_{tag}"
+    embedder = FakeEmbedder()
+    embedder.model = f"it-{tag}"
+    settings = make_settings(tmp_path, search_engine_timeout_ms=5000)
+    factory = make_services_factory(embedder=embedder, vector=vector, keyword=keyword)
+    app = create_app(settings, services_factory=factory, start_worker=False)
+    async with app.router.lifespan_context(app):
+        transport = httpx.ASGITransport(app=app)
+        async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+            api = Api(app, client)
+            try:
+                yield api
+            finally:
+                s = api.services
+                await vector.client.delete_collection(s.vector_collection)
+                await keyword.client.indices.delete(
+                    index=keyword.index, params={"ignore_unavailable": "true"}
+                )

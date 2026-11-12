@@ -31,6 +31,10 @@ async def _warm_up(services: Services) -> None:
         await services.vector.ensure_collection(services.vector_collection, services.embedder.dim)
     except Exception as e:  # noqa: BLE001
         log.warning("warm_up_failed", extra={"event": "warm_up_failed", "error": repr(e)[:300]})
+    try:
+        await services.keyword.ensure_index()
+    except Exception as e:  # noqa: BLE001
+        log.warning("warm_up_failed", extra={"event": "warm_up_failed", "error": repr(e)[:300]})
 
 
 def register_index_profile(services: Services) -> None:

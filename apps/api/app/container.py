@@ -50,7 +50,7 @@ class Services:
 
     @property
     def keyword_index(self) -> str:
-        return OPENSEARCH_INDEX
+        return str(getattr(self.keyword, "index", OPENSEARCH_INDEX))
 
     @property
     def index_profile_id(self) -> str:
