@@ -1,0 +1,68 @@
+[project]
+name = "lecture-rag-api"
+version = "0.1.0"
+description = "강의자료 RAG 검색 서비스 API"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "fastapi",
+    "uvicorn[standard]",
+    "pydantic-settings",
+    "sqlalchemy>=2",
+    "opensearch-py[async]",
+    "qdrant-client",
+    "pymupdf",
+    "tiktoken",
+    "sentence-transformers",
+    "openai",
+    "anthropic",
+    "pyjwt",
+    "bcrypt",
+    "cachetools",
+    "httpx",
+    "pyyaml",
+    "python-multipart",
+    "numpy",
+    "torch",
+]
+
+[dependency-groups]
+dev = [
+    "pytest",
+    "pytest-asyncio",
+    "ruff",
+    "mypy",
+    "types-pyyaml",
+    "types-cachetools",
+]
+
+[tool.uv]
+package = false
+
+# linux(컨테이너·CI)에서는 CUDA 의존성이 붙는 PyPI 휠 대신 CPU 휠을 받는다. macOS는 PyPI 휠 그대로.
+[tool.uv.sources]
+torch = [{ index = "pytorch-cpu", marker = "sys_platform == 'linux'" }]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+testpaths = ["tests"]
+markers = ["integration: requires running qdrant and opensearch containers"]
+addopts = "-m 'not integration' --basetemp=.pytest_tmp"
+
+[tool.ruff]
+line-length = 110
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "SIM"]
+ignore = ["B008"]
+
+[tool.mypy]
+python_version = "3.12"
+ignore_missing_imports = true
+check_untyped_defs = true

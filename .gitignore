@@ -1,0 +1,32 @@
+# secrets
+.env
+compose.override.yaml
+
+# runtime data
+*.db
+*.db-wal
+*.db-shm
+data/files/
+data/runtime/
+hf_cache/
+evaluation/private/
+
+# python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# node
+node_modules/
+dist/
+coverage/
+
+# local toolchains and caches (uv python, uv cache, npm cache)
+.tools/
+
+# os
+.DS_Store
+.pytest_tmp/

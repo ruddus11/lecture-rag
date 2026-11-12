@@ -1,0 +1,9 @@
+# 개발용: cp compose.override.example.yaml compose.override.yaml
+# 검색 엔진 포트를 127.0.0.1 에만 공개해 호스트에서 uvicorn --reload 로 API 를 돌릴 수 있게 한다.
+services:
+  qdrant:
+    ports:
+      - "127.0.0.1:6333:6333"
+  opensearch:
+    ports:
+      - "127.0.0.1:9200:9200"
