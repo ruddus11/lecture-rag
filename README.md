@@ -4,7 +4,7 @@
 
 ## 현재 상태
 
-M1~M7 구현, M8 삭제·재시도·격리 회귀 구현, 로컬 실제 엔진 integration 5개 통과. Docker 컨테이너 기동은 아직 미검증이다. 정확한 결과와 남은 항목은 [진행보고](docs/구현_진행보고.md), [작업목록](docs/구현_작업목록.md), [handoff](docs/handoff.md) 참조.
+M1~M7 구현, M8 삭제·재시도·격리 회귀 구현, 로컬 실제 엔진 integration 5개 통과. M9 평가·M10 성능 측정 완료(네이티브 호스트: hybrid 검색 캐시 off 동시 1 p50 46ms·p95 56ms, 동시 5 p50 118ms, [performance](docs/performance.md)). Docker 컨테이너 기동은 아직 미검증이다. 정확한 결과와 남은 항목은 [진행보고](docs/구현_진행보고.md), [작업목록](docs/구현_작업목록.md), [handoff](docs/handoff.md) 참조.
 
 ## 실행
 
@@ -32,7 +32,7 @@ curl http://localhost:8000/api/v1/health/ready
 
 ## 환경변수
 
-전체 목록은 [.env.example](.env.example). `AUTH_SECRET`, `DATA_DIR`, `INSTITUTIONS_FILE`, `USERS_FILE`, `QDRANT_URL`, `OPENSEARCH_URL`로 실행 환경을 설정한다. 외부 LLM은 `ANSWER_PROVIDER=openai|claude`와 해당 API 키·모델 ID를 설정한다. 실제 유료 API smoke는 키가 없어 미검증이다. 실제 비밀은 `.env`에만 보관한다. 캐시 키·TTL 골격은 있으며 실제 검색 캐시 연결은 M10 범위다.
+전체 목록은 [.env.example](.env.example). `AUTH_SECRET`, `DATA_DIR`, `INSTITUTIONS_FILE`, `USERS_FILE`, `QDRANT_URL`, `OPENSEARCH_URL`로 실행 환경을 설정한다. 외부 LLM은 `ANSWER_PROVIDER=openai|claude`와 해당 API 키·모델 ID를 설정한다. 실제 유료 API smoke는 키가 없어 미검증이다. 실제 비밀은 `.env`에만 보관한다. 질문 임베딩·검색 결과 캐시는 `CACHE_EMBED_TTL_SECONDS`·`CACHE_RETRIEVAL_TTL_SECONDS`(0이면 끔)로 조절하며 정확도 평가는 둘 다 0으로 실행한다(ADR-008).
 
 ## 로컬 개발과 검증
 

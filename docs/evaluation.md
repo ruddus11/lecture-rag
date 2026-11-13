@@ -1,6 +1,6 @@
 # 평가 결과 (M9)
 
-2026-11-12, 서버 commit `aa10978`, 평가 도구는 M9 커밋. macOS arm64 Apple M5 24GB, bge-m3 CPU, Qdrant 1.20.0/OpenSearch 2.19.7 Nori, HTTP 실제 경로, 캐시 off·rate limit off. 접근 가능한 문서 5개/46청크 중 문항은 자작 OS·AI 2문서만 지정 scope로 평가했다. 컨테이너 메모리는 Docker 부재로 미측정.
+2026-11-12, 서버 commit `aa10978`, 평가 도구는 M9 커밋. macOS arm64 Apple M5 24GB, bge-m3 CPU, Qdrant 1.20.0/OpenSearch 2.19.7 Nori, HTTP 실제 경로, 캐시 off·rate limit off. M10 이후 캐시가 기본 on이므로 평가용 API는 `CACHE_EMBED_TTL_SECONDS=0 CACHE_RETRIEVAL_TTL_SECONDS=0`으로 띄운다. M10 코드(`7f77d4a`)로 같은 데이터에서 다시 실행한 회귀 결과는 `evaluation/results/m10_regression/`이며 이전 코드와 순위가 30/30 같다. 접근 가능한 문서 5개/46청크 중 문항은 자작 OS·AI 2문서만 지정 scope로 평가했다. 컨테이너 메모리는 Docker 부재로 미측정.
 
 | 모드 | 전체/정답 있음 | 실패/skip | Hit@1 | Hit@3/5 | MRR@10 | required Recall@5 |
 |---|---|---|---|---|---|---|

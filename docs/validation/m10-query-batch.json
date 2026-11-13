@@ -1,0 +1,1 @@
+{"model": "BAAI/bge-m3", "machine": "arm64", "questions": 30, "single_ms": 41.1, "batch_ms": {"2": 45.2, "5": 69.7, "10": 106.1, "16": 175.2}, "threads5_single_each_round_ms": 112.7, "batch_vs_single_cosine_min": 1.0, "batch_vs_single_max_abs_diff": 1.564621925354004e-07}

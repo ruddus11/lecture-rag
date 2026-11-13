@@ -10,7 +10,7 @@ M8 fresh compose 검증과 v0.1 태그 미완료. Docker 실기동과 유료 pro
 
 ## 마지막 실행 명령·결과
 
-M7: API pytest 112 passed, ruff·mypy 통과. 웹 최종 검증은 아래 M7 로그 참조.
+M10 (2026-11-13, main): `cd apps/api && uv run pytest` → 145 passed, 5 deselected. `pytest -m integration`(실제 Qdrant 1.20.0·OpenSearch 2.19.7, 포트 6433/9210) → 5 passed. ruff check·format·mypy 통과. 웹 typecheck·16 tests·eslint·build 통과. `docker-compose --env-file .env.example config --quiet` 통과. 지연 측정은 아래 M10 로그.
 
 ## 실행 로그
 
@@ -50,7 +50,7 @@ sqlite> select status, stage, attempts from ingestion_jobs → processing|embedd
 
 ## 다음 한 작업
 
-Docker 환경에서 fresh compose 기동→ready→업로드·질문·PDF·삭제·재시도 흐름 확인 후 v0.1 태그.
+Docker 환경에서 fresh compose 기동→ready→업로드·질문·PDF·삭제·재시도 흐름 확인 후 v0.1 태그. 같은 환경에서 `run_latency`를 다시 돌려 컨테이너 수치·`docker stats`를 `docs/performance.md`에 채운다.
 
 ### M7 웹 흐름 (2026-11-12, Chrome headless + 실제 로컬 엔진)
 
@@ -77,3 +77,14 @@ M8 최종 검증: API 122 passed(39.44초), 실제 엔진 integration 5 passed(1
 ## M9 이어가기 (2026-11-12)
 
 Docker CLI 없음 → fresh compose와 v0.1 보류(ADR-010). 로컬 API 8010 캐시 off, 실제 bge-m3/Qdrant/Nori로 dev 30문항×3모드 실행, 실패/skip 0. CSV는 evaluation/results. pytest 127 passed, 5 deselected; npm build·standalone compose config 통과. 근거 재확인이 반복 방문의 핵심이며 평가도 정답 페이지 검색을 우선한다. test 10문항 동결. 수동 인용 의미 평가는 남음.
+
+## M10 지연 계측과 성능 개선 (2026-11-13)
+
+Docker CLI·Docker Desktop 모두 없음을 다시 확인(`which docker` 없음, /Applications 없음) → M8 fresh compose와 v0.1 태그 계속 보류.
+병렬 작업 중인 다른 작업트리와 포트가 겹치지 않도록 엔진을 `QDRANT_PORT=6433 OPENSEARCH_PORT=9210 infra/local/engines.sh start`, API를 `infra/local/api.sh 8020`으로 띄웠다(`.tools`는 원 프로젝트의 바이너리·모델 캐시 심볼릭 링크, 데이터는 이 작업트리 `.tools/e2e`).
+
+- baseline(`062ede3`): hybrid search 동시 1 p50 46.0ms·p95 51.1ms, 동시 5 p50 135.8ms·p95 166.4ms. 서버 시간의 93%가 질문 임베딩.
+- 개선(`7f77d4a`, 캐시 off): 동시 질문 임베딩 기회적 batch(ADR-011). 동시 5 p50 117.7ms·p95 126.5ms, 처리량 35.9→42.7 rps(3회 반복 일관). 동시 1 변화 없음.
+- 캐시 on(임베딩→검색 결과, ADR-008): 반복 질문 작업부하에서 동시 1 p50 1.2ms. 처음 보는 질문은 캐시 off와 같다.
+- 정확도 회귀: 같은 데이터에서 이전 코드와 dev 30문항 세 모드 순위 30/30 동일(`evaluation/results/m10_regression/`).
+- 실제 LLM 답변 지연은 유료 키가 없어 미측정. 표와 해석은 `docs/performance.md`.

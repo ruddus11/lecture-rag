@@ -18,3 +18,5 @@ infra/local/engines.sh stop
 ```
 
 디스크 사용률이 95%를 넘으면 OpenSearch가 인덱스 생성을 막는다. 이 로컬 인스턴스에서만 `engines.sh`가 디스크 워터마크 검사를 끈다.
+
+다른 작업트리가 같은 머신에서 엔진을 쓰고 있으면 포트를 바꾼다: `QDRANT_PORT=6433 OPENSEARCH_PORT=9210 infra/local/engines.sh start`, 같은 변수로 `infra/local/api.sh 8020`, integration은 `IT_QDRANT_URL=http://127.0.0.1:6433 IT_OPENSEARCH_URL=http://127.0.0.1:9210`. `stop`은 이 작업트리가 띄운 pid만 멈춘다. `api.sh`는 `CACHE_EMBED_TTL_SECONDS`·`CACHE_RETRIEVAL_TTL_SECONDS`를 그대로 넘기므로 정확도 평가 때는 둘 다 0으로 준다.
