@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """키 값을 출력하지 않는 최소 비밀 스캔. 기본 staged, --history 전체 도달 가능 이력."""
+
 from __future__ import annotations
 
 import re
@@ -18,7 +19,9 @@ def git(*args: str) -> bytes:
 
 def main() -> int:
     if "--history" in sys.argv:
-        objects = [line.split(b" ", 1)[0].decode() for line in git("rev-list", "--objects", "--all").splitlines()]
+        objects = [
+            line.split(b" ", 1)[0].decode() for line in git("rev-list", "--objects", "--all").splitlines()
+        ]
     else:
         objects = []
         for entry in git("ls-files", "--stage", "-z").split(b"\0"):

@@ -6,13 +6,13 @@
 
 ## 미완료
 
-M8 fresh compose 검증과 v0.1 태그 미완료. Docker 실기동과 유료 provider smoke는 미검증.
+이 브랜치 M11은 구현·로컬 검증 완료. M12 CI/문서는 구현했으나 원격 CI 녹색·Linux Compose·fresh clone 전체 명령 게이트 미완료. M8 수용·태그·M10은 main 담당. 유료 smoke는 키가 없어 SKIP.
 
 ## 마지막 실행 명령·결과
 
-M7: API pytest 112 passed, ruff·mypy 통과. 웹 최종 검증은 아래 M7 로그 참조.
+M11 ccdcd0e: API 136 passed + scanner 1 passed, ruff·format·mypy·웹 build·Compose config 통과. M12 fresh clone(ff0f3ec 소스): API 137 passed/5 deselected, 웹 16 passed, Node 22.23.5 engine warning 0건, lint·format·mypy·typecheck·build·standalone Compose config 통과. 로그: docs/logs/m12_fresh_local.txt, 상세: docs/reproducibility.md. 아래 이전 실행 기록은 당시 소스·환경의 결과다.
 
-## 실행 로그
+### 이전 실행 로그
 
 ### M3 재시작 복구 수동 확인 (2026-11-12, 로컬 uvicorn + Qdrant 1.20.0 바이너리, bge-m3)
 
@@ -50,7 +50,7 @@ sqlite> select status, stage, attempts from ingestion_jobs → processing|embedd
 
 ## 다음 한 작업
 
-Docker 환경에서 fresh compose 기동→ready→업로드·질문·PDF·삭제·재시도 흐름 확인 후 v0.1 태그.
+main에 M11/M12 병합 후 M10 캐시와 고객 수용 회귀를 재실행하고, 승인된 원격 환경에서 CI 수동 integration job을 실행해 Linux 증거를 남긴다. 이 워크트리에서는 push·태그를 수행하지 않는다.
 
 ### M7 웹 흐름 (2026-11-12, Chrome headless + 실제 로컬 엔진)
 
@@ -74,7 +74,7 @@ M7 최종: 웹 13 tests passed, typecheck·eslint·build 통과. `.tools/bin/doc
 
 M8 최종 검증: API 122 passed(39.44초), 실제 엔진 integration 5 passed(14.27초), 웹 16 passed. ruff check·format(94 files)·mypy·typecheck·eslint·build·compose config 통과. Docker fresh 검증 미실행.
 
-## M9 이어가기 (2026-11-12)
+### M9 이어가기 (2026-11-12)
 
 Docker CLI 없음 → fresh compose와 v0.1 보류(ADR-010). 로컬 API 8010 캐시 off, 실제 bge-m3/Qdrant/Nori로 dev 30문항×3모드 실행, 실패/skip 0. CSV는 evaluation/results. pytest 127 passed, 5 deselected; npm build·standalone compose config 통과. 근거 재확인이 반복 방문의 핵심이며 평가도 정답 페이지 검색을 우선한다. test 10문항 동결. 수동 인용 의미 평가는 남음.
 
