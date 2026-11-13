@@ -8,7 +8,7 @@
 
 M10 성능 측정은 네이티브 호스트 기준으로 완료했다. hybrid 검색 캐시 off에서 동시 1 p50 46ms·p95 56ms, 동시 5 p50 136→118ms·p95 166→127ms, 처리량 약 18% 개선을 확인했다([성능 기록](docs/performance.md)). M11은 본문 크기 제한·로그 비밀 마스킹·보안 회귀를 추가했고, M12는 재현 절차·비밀 스캔·CI 및 수동 Linux Compose 검증 job을 구현했다. 원격 workflow 성공이나 컨테이너 성능을 확인한 결과는 아니다.
 
-정확한 결과와 남은 항목은 [진행보고](docs/구현_진행보고.md), [작업목록](docs/구현_작업목록.md), [handoff](docs/handoff.md) 참조.
+공개 검증 결과는 아래 표와 [평가](docs/evaluation.md), [성능 기록](docs/performance.md), [재현 기록](docs/reproducibility.md)을 참조한다. 내부 작업 문서와 원본 실행 로그는 공개 저장소에서 제외한다.
 
 ## 실행
 
@@ -66,7 +66,7 @@ Vite 프록시는 API 8000으로 연결한다. 실제 엔진 integration은 `cd 
 - `apps/web/src`: app, features, shared. 서버 상태는 React Query, 인증은 React 메모리 상태.
 - `infra/`, `compose.yaml`: 검색 엔진과 네 서비스 구성.
 - `config/`: 기관·정적 데모 계정 example.
-- `docs/`: 설계·작업목록·ADR·검증 기록.
+- `docs/`: 공개 아키텍처·ADR·평가 및 검증 요약.
 - `evaluation/`: 동결 dev/test JSONL·HTTP 평가 도구·결과 CSV. 수업 자료는 `evaluation/private/`에만 둔다.
 
 혼자 운영할 수 있도록 SQLite·파일 볼륨·단일 프로세스 큐를 사용한다. 삭제는 원장을 먼저 `deleting`으로 바꿔 접근을 차단한 후 인덱스→파일→청크를 정리한다. 중간 실패는 비공개 상태로 유지하고 관리자가 재시도한다.
@@ -95,7 +95,7 @@ Docker 환경에서 M8 fresh Compose 실기동 수용검증을 수행하고 컨�
 | 2026-11-12 / 062ede3 M9 | 실제 bge-m3·Qdrant·OpenSearch/Nori, dev 30문항×3모드 | 정답 있음 26문항 Hit@1 keyword 0.9615, vector/hybrid 1.0. [평가](docs/evaluation.md), [CSV](evaluation/results/) |
 | 2026-11-13 / 7f77d4a M10 | 네이티브 호스트·실제 bge-m3/Qdrant/OpenSearch, 캐시 off | hybrid 동시 5 p50 136→118ms·p95 166→127ms, 처리량 +18%, dev 30문항 세 모드 순위 동일. [성능 기록](docs/performance.md) |
 | 2026-11-13 / ccdcd0e M11 | macOS arm64·Python 3.12.13, API 136건+scanner 1건 | 모두 통과, integration 5건 제외. 중첩 로그/본문 상한 RED→GREEN, 설정 수용 3건. [보안 증거](docs/security.md) |
-| 2026-11-13 / ff0f3ec M12 구현 소스 | macOS fresh clone·Python 3.12.13·Node 22.23.5, API 137/웹 16건 | 모두 통과, lint/typecheck/build·Compose config 통과. [재현 기록](docs/reproducibility.md)·[로그](docs/logs/m12_fresh_local.txt). 원격 CI/Linux Compose는 미실행 |
+| 2026-11-13 / ff0f3ec M12 구현 소스 | macOS fresh clone·Python 3.12.13·Node 22.23.5, API 137/웹 16건 | 모두 통과, lint/typecheck/build·Compose config 통과. [재현 기록](docs/reproducibility.md). 원격 CI/Linux Compose는 미실행 |
 | 2026-11-13 / M10 + M11·M12 병합 결과 | macOS·Python 3.12.13·Node 22.22.3 | API **155 passed / 5 integration deselected**, 웹 **16 passed / 6 files**, 모두 종료 코드 0. 이번 실행에서 실제 엔진 integration·Docker·원격 CI는 재검증하지 않음 |
 
 페이지 번호는 PDF **물리 페이지**(1부터)이며 슬라이드 인쇄 번호와 다를 수 있다. fake 답변은 실제 생성 모델 품질의 증거가 아니다.
@@ -134,4 +134,4 @@ uv run pytest -m integration
 uv run python -m scripts.live_smoke --embedding --openai --claude
 ```
 
-[아키텍처](docs/architecture.md), [고객 요구](docs/requirements.md), [인수인계](docs/handoff.md), [ADR 001~008](docs/decisions/)에서 구조·선택 이유·다음 한 작업을 확인할 수 있다.
+[아키텍처](docs/architecture.md), [고객 요구](docs/requirements.md), [ADR 001~008](docs/decisions/)에서 구조·선택 이유·다음 한 작업을 확인할 수 있다.

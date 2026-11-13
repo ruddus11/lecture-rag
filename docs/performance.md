@@ -67,8 +67,7 @@ after p50 117.7 / 118.6 / 120.3, p95 126.5 / 140.1 / 131.4, 41~43 rps. 동시성
 해석:
 - 동시성 1에서 hybrid 지연의 93%가 질문 임베딩(bge-m3 CPU 41ms)이다. keyword(BM25) 2~3ms, Qdrant 2ms, 원장 대조·scope 1ms 미만.
   두 엔진은 이미 `asyncio.gather`로 병렬이라 total ≈ max(keyword, embed+vector)다.
-- 동시 5에서 before는 요청마다 따로 `encode`를 불러 torch CPU 스레드(4개)를 나눠 썼다. 단독 측정(`scripts/bench_query_batch.py`,
-  `docs/validation/m10-query-batch.json`): 1건 41ms, batch 5 70ms, 5개 스레드 동시 1건씩 113ms. batch 결과 벡터는 1건씩과 같다
+- 동시 5에서 before는 요청마다 따로 `encode`를 불러 torch CPU 스레드(4개)를 나눠 썼다. 단독 측정(`scripts/bench_query_batch.py`; 원본 실행 로그는 비공개): 1건 41ms, batch 5 70ms, 5개 스레드 동시 1건씩 113ms. batch 결과 벡터는 1건씩과 같다
   (코사인 최소 1.0, 최대 절대 차 1.6e-7).
 - 개선 폭이 batch 단독 비율보다 작은 이유: 닫힌 루프 클라이언트 5개라 batch가 1건과 4건으로 번갈아 생기고, 요청은 진행 중 batch가
   끝나기를 기다린 뒤 자기 batch를 기다린다. 고정 대기 창으로 맞추면 동시 1 지연이 늘어 채택하지 않았다(ADR-011).

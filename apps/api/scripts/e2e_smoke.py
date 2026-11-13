@@ -4,7 +4,7 @@
     python -m scripts.e2e_smoke --skip-upload --modes keyword,vector,hybrid --answers
 
 data/samples 의 자작 PDF 를 컬렉션에 올리고 ready 까지 기다린 뒤, 샘플 질문 5개를 검색해 기대 페이지가
-상위 5 안에 있는지 출력한다. 출력은 JSON 줄이며 docs/handoff.md 의 실행 로그로 붙인다.
+상위 5 안에 있는지 출력한다. 출력은 JSON 줄이며 원본 실행 로그는 공개 저장소 밖에 보관한다.
 """
 
 from __future__ import annotations

@@ -8,7 +8,7 @@
 | vector |30/26|0/0|1.0|1.0/1.0|1.0|1.0|
 | hybrid |30/26|0/0|1.0|1.0/1.0|1.0|1.0|
 
-[문항별 CSV·환경 summary](../evaluation/results/)와 [실행 로그](validation/m9-retrieval.jsonl). test 10문항은 동결하고 최종 홀드아웃으로 남겼다.
+[자작 샘플 문항별 CSV·환경 summary](../evaluation/results/). 원본 실행 로그는 공개 대상에서 제외한다. test 10문항은 동결하고 최종 홀드아웃으로 남겼다.
 
 ## 지표
 

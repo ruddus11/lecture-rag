@@ -6,7 +6,7 @@
 
 ## 확인 환경
 
-Docker가 없어 OpenSearch 공식 `opensearch-min-2.19.7-linux-arm64.tar.gz`(sha512 `89f6cb7f…343daa` 대조)를 Temurin JDK 21.0.13(macOS aarch64, sha256 대조)로 실행하고 `analysis-nori-2.19.7.zip`을 설치했다(compose의 이미지와 같은 2.19.7·같은 플러그인). `_cat/plugins` → `analysis-nori 2.19.7`. 실행 스크립트는 `docs/handoff.md`.
+Docker가 없어 OpenSearch 공식 `opensearch-min-2.19.7-linux-arm64.tar.gz`(sha512 `89f6cb7f…343daa` 대조)를 Temurin JDK 21.0.13(macOS aarch64, sha256 대조)로 실행하고 `analysis-nori-2.19.7.zip`을 설치했다(compose의 이미지와 같은 2.19.7·같은 플러그인). `_cat/plugins` → `analysis-nori 2.19.7`. 실행 절차는 [로컬 엔진 안내](../../infra/local/README.md) 참조.
 
 ## `_analyze` 결과 (`field: text`, analyzer `korean` = nori_tokenizer mixed + nori_part_of_speech + nori_readingform + lowercase)
 

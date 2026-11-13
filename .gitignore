@@ -37,3 +37,15 @@ coverage/
 
 # isolated reproducibility checkout and CI evidence
 .repro/
+
+# Keep only sanitized environment templates public
+.env.*
+!.env.example
+
+# Private working documents and raw execution evidence
+/docs/handoff.md
+/docs/설계서.md
+/docs/구현_작업목록.md
+/docs/구현_진행보고.md
+/docs/logs/
+/docs/validation/

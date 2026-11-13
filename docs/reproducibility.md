@@ -35,6 +35,6 @@ README의 Docker 시작·ready·실제 엔진·Chrome 명령은 이 머신에서
 - npm ci·lint·typecheck, 웹 **16 passed**, build 통과. Node engine 경고 **0건**.
 - .env 초기화·훅 설정·index **204 blobs / 0 findings**, 이력 **288 blobs / 0 findings**, standalone Compose config 통과.
 - 유료 smoke 3항목 모두 키 없음 SKIP. API 디렉터리에서 실행한 smoke의 AUTH_SECRET 경고는 루트 .env를 자동 로드하지 않기 때문이며 키 설정·외부 호출은 하지 않았다.
-- [실행 로그](logs/m12_fresh_local.txt). shell xtrace의 잘린 한글 경로 바이트는 UTF-8 backslash escape로 보존하고 긴 PATH 확장은 제외했다.
+- 개인 개발 환경 경로가 포함된 원본 실행 로그는 공개 대상에서 제외한다. 위 결과는 기존 검증 기록의 요약이며 이번 공개 자료 정리에서 테스트를 재실행한 결과는 아니다.
 
 이 결과는 macOS fresh clone의 **로컬 명령** 재현 증거다. README의 Docker·Chrome 실기동 명령을 모두 성공했다는 뜻은 아니므로 작업목록의 전체 재현 게이트는 미체크 상태다.
