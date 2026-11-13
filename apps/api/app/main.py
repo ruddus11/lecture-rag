@@ -12,6 +12,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.routes import answers, auth, collections, documents, health, jobs, search
 from app.container import Services, build_services
+from app.core.body_limit import BodyLimitMiddleware
 from app.core.config import CHUNKER_VERSION, PARSER_VERSION, Settings, get_settings
 from app.core.errors import install_error_handlers
 from app.core.logging import RequestContextMiddleware, setup_logging
@@ -100,6 +101,7 @@ def create_app(
         redoc_url=None,
     )
     install_error_handlers(app)
+    app.add_middleware(BodyLimitMiddleware)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origin_list,

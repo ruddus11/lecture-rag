@@ -77,3 +77,7 @@ M8 최종 검증: API 122 passed(39.44초), 실제 엔진 integration 5 passed(1
 ## M9 이어가기 (2026-11-12)
 
 Docker CLI 없음 → fresh compose와 v0.1 보류(ADR-010). 로컬 API 8010 캐시 off, 실제 bge-m3/Qdrant/Nori로 dev 30문항×3모드 실행, 실패/skip 0. CSV는 evaluation/results. pytest 127 passed, 5 deselected; npm build·standalone compose config 통과. 근거 재확인이 반복 방문의 핵심이며 평가도 정답 페이지 검색을 우선한다. test 10문항 동결. 수동 인용 의미 평가는 남음.
+
+### M11 분리 구현 (2026-11-13)
+
+`uv run pytest`: 136 passed, 5 deselected. 추가한 scanner 회귀는 별도 1 passed. ruff check·format·mypy·npm build·standalone Compose config 통과. `python3 scripts/check_secrets.py --history`: 261 blobs, 0 findings. 중첩 로그·traceback 비밀 마스킹과 HTTP 본문 한도 추가. 설정 변경 3건 수용 테스트 통과. `git config core.hooksPath .githooks`로 비밀 스캔 훅 활성화 가능. M8 수용·태그·M10은 main 담당 범위다.
