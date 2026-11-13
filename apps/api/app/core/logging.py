@@ -50,14 +50,28 @@ class SecretMasker(logging.Filter):
         text = self._bearer.sub(r"\1***", text)
         return self._key_patterns.sub("***", text)
 
+    def mask_value(self, value: Any) -> Any:
+        if isinstance(value, str):
+            return self.mask(value)
+        if isinstance(value, dict):
+            return {
+                k: "***" if str(k).lower() == "authorization" else self.mask_value(v)
+                for k, v in value.items()
+            }
+        if isinstance(value, (list, tuple)):
+            return [self.mask_value(v) for v in value]
+        return value
+
     def filter(self, record: logging.LogRecord) -> bool:
         record.msg = self.mask(record.getMessage())
         record.args = None
         for k, v in list(record.__dict__.items()):
-            if k not in _STD_ATTRS and isinstance(v, str):
-                record.__dict__[k] = self.mask(v)
-            elif k.lower() == "authorization":
+            if k.lower() == "authorization":
                 record.__dict__[k] = "***"
+            elif k not in _STD_ATTRS:
+                record.__dict__[k] = self.mask_value(v)
+        if record.exc_info:
+            record.exc_text = self.mask(logging.Formatter().formatException(record.exc_info))
         return True
 
 
@@ -78,7 +92,7 @@ class JsonFormatter(logging.Formatter):
             if k not in _STD_ATTRS and k not in out:
                 out[k] = v
         if record.exc_info:
-            out["exc"] = self.formatException(record.exc_info)
+            out["exc"] = record.exc_text or self.formatException(record.exc_info)
         return json.dumps(out, ensure_ascii=False, default=str)
 
 

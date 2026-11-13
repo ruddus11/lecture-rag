@@ -6,13 +6,15 @@
 
 ## 미완료
 
-M8 fresh compose 검증과 v0.1 태그 미완료. Docker 실기동과 유료 provider smoke는 미검증.
+M1~M12 구현 및 로컬 검증 완료. M8 Docker Compose 실기동 수용검증·v0.1 태그와 원격 CI/Linux Compose 검증은 보류다. M12 fresh clone 로컬 검증은 완료했으며 Docker 포함 전체 절차는 미검증이다. 유료 smoke는 키가 없어 SKIP.
 
 ## 마지막 실행 명령·결과
 
 M10 (2026-11-13, main): `cd apps/api && uv run pytest` → 145 passed, 5 deselected. `pytest -m integration`(실제 Qdrant 1.20.0·OpenSearch 2.19.7, 포트 6433/9210) → 5 passed. ruff check·format·mypy 통과. 웹 typecheck·16 tests·eslint·build 통과. `docker-compose --env-file .env.example config --quiet` 통과. 지연 측정은 아래 M10 로그.
 
-## 실행 로그
+M11 ccdcd0e: API 136 passed + scanner 1 passed, ruff·format·mypy·웹 build·Compose config 통과. M12 fresh clone(ff0f3ec 소스): API 137 passed/5 deselected, 웹 16 passed, Node 22.23.5 engine warning 0건, lint·format·mypy·typecheck·build·standalone Compose config 통과. 로그: docs/logs/m12_fresh_local.txt, 상세: docs/reproducibility.md. 아래 이전 실행 기록은 당시 소스·환경의 결과다.
+
+### 이전 실행 로그
 
 ### M3 재시작 복구 수동 확인 (2026-11-12, 로컬 uvicorn + Qdrant 1.20.0 바이너리, bge-m3)
 
@@ -52,6 +54,8 @@ sqlite> select status, stage, attempts from ingestion_jobs → processing|embedd
 
 Docker 환경에서 fresh compose 기동→ready→업로드·질문·PDF·삭제·재시도 흐름 확인 후 v0.1 태그. 같은 환경에서 `run_latency`를 다시 돌려 컨테이너 수치·`docker stats`를 `docs/performance.md`에 채운다.
 
+M11/M12 병합 후 API·웹 회귀를 재실행한다. 원격 실행이 승인된 환경에서 기본 CI·수동 integration job을 실행해 Linux 증거를 남긴다. 이번 병합에서는 push·태그를 수행하지 않는다.
+
 ### M7 웹 흐름 (2026-11-12, Chrome headless + 실제 로컬 엔진)
 
 `cd apps/web && node e2e/browser_flow.mjs ../../data/samples/os_week3_process.pdf ../../docs/screenshots/m7` 통과: login_ok → upload_ready(2초) → answer_ok → viewer_ok(3 / 3쪽) → abstain_ok.
@@ -74,7 +78,7 @@ M7 최종: 웹 13 tests passed, typecheck·eslint·build 통과. `.tools/bin/doc
 
 M8 최종 검증: API 122 passed(39.44초), 실제 엔진 integration 5 passed(14.27초), 웹 16 passed. ruff check·format(94 files)·mypy·typecheck·eslint·build·compose config 통과. Docker fresh 검증 미실행.
 
-## M9 이어가기 (2026-11-12)
+### M9 이어가기 (2026-11-12)
 
 Docker CLI 없음 → fresh compose와 v0.1 보류(ADR-010). 로컬 API 8010 캐시 off, 실제 bge-m3/Qdrant/Nori로 dev 30문항×3모드 실행, 실패/skip 0. CSV는 evaluation/results. pytest 127 passed, 5 deselected; npm build·standalone compose config 통과. 근거 재확인이 반복 방문의 핵심이며 평가도 정답 페이지 검색을 우선한다. test 10문항 동결. 수동 인용 의미 평가는 남음.
 
@@ -88,3 +92,19 @@ Docker CLI·Docker Desktop 모두 없음을 다시 확인(`which docker` 없음,
 - 캐시 on(임베딩→검색 결과, ADR-008): 반복 질문 작업부하에서 동시 1 p50 1.2ms. 처음 보는 질문은 캐시 off와 같다.
 - 정확도 회귀: 같은 데이터에서 이전 코드와 dev 30문항 세 모드 순위 30/30 동일(`evaluation/results/m10_regression/`).
 - 실제 LLM 답변 지연은 유료 키가 없어 미측정. 표와 해석은 `docs/performance.md`.
+
+### M11 분리 구현 (2026-11-13)
+
+`uv run pytest`: 136 passed, 5 deselected. 추가한 scanner 회귀는 별도 1 passed. ruff check·format·mypy·npm build·standalone Compose config 통과. `python3 scripts/check_secrets.py --history`: 261 blobs, 0 findings. 중첩 로그·traceback 비밀 마스킹과 HTTP 본문 한도 추가. 설정 변경 3건 수용 테스트 통과. `git config core.hooksPath .githooks`로 비밀 스캔 훅 활성화 가능. M8 수용·태그·M10은 main 담당 범위다.
+
+
+### M12 재현성·CI (2026-11-13)
+
+.env 난수 초기화·ready 대기 스크립트, 비밀 스캔 훅, 기본 CI와 수동 Linux Compose integration/브라우저 job을 추가했다. fresh clone 로컬 API 137건·웹 16건과 정적 검사·build·Compose config 통과 기록은 `docs/reproducibility.md`, `docs/logs/m12_fresh_local.txt`에 보존했다. Docker 실기동·원격 CI는 미검증이며 유료 API smoke는 키가 없어 건너뛰었다.
+
+
+## M11·M12 병합 후 회귀 (2026-11-13)
+
+main의 M10과 feat/m11-m12의 보안·재현성/CI를 병합하고 문서 양쪽 기록을 보존했다. 현재 병합 결과에서 `cd apps/api && uv run pytest`는 **155 passed, 5 deselected**(52.78초), `cd apps/web && npm test`는 **16 passed / 6 files**(2.92초), 모두 종료 코드 0이다. integration 5건은 기본 설정에 따라 제외했으며 이번 병합에서 재실행하지 않았다. `git diff --cached --check` 통과, 비밀 스캔은 256 blobs / 0 findings였다. 로컬 실행 Node는 22.22.3으로 M12 fresh clone 기록의 22.23.5와 구분한다.
+
+남은 검증은 M8 Docker Compose 실기동 수용검증·컨테이너 성능과 원격 CI다. 유료 API smoke는 키가 없어 건너뛰었다. push와 태그 생성은 수행하지 않는다.

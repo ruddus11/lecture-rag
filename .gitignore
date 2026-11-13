@@ -34,3 +34,6 @@ coverage/
 # iCloud 동기화 제외용 실제 폴더 (심볼릭 링크 .tools, .venv, node_modules 가 가리킴)
 *.nosync
 .qdrant-initialized
+
+# isolated reproducibility checkout and CI evidence
+.repro/
