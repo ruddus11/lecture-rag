@@ -77,6 +77,14 @@ class OpenSearchStore:
         plugins = await self.client.cat.plugins(format="json")
         return any(p.get("component") == "analysis-nori" for p in plugins)
 
+    async def keyword_fields(self) -> list[str]:
+        """색인 매핑에서 type=keyword 인 필드 (필터 4필드 매핑 적용 확인, 설계서 10.2-4)."""
+        if not await self.client.indices.exists(index=self.index):
+            return []
+        mapping = await self.client.indices.get_mapping(index=self.index)
+        props = next(iter(mapping.values()), {}).get("mappings", {}).get("properties", {})
+        return sorted(k for k, v in props.items() if v.get("type") == "keyword")
+
     async def ensure_index(self) -> None:
         if self._ensured:
             return

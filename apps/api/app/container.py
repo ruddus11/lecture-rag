@@ -10,6 +10,7 @@ from app.core.config import CHUNKER_VERSION, OPENSEARCH_INDEX, PARSER_VERSION, S
 from app.core.ratelimit import RateLimiter
 from app.documents.chunker import Chunker
 from app.retrieval.embeddings.base import EmbeddingProvider, model_slug
+from app.retrieval.embeddings.batcher import QueryBatcher
 from app.retrieval.embeddings.cache import EmbeddingFileCache
 from app.storage.db import Database
 from app.storage.files import FileStore
@@ -33,6 +34,7 @@ class Services:
     files: FileStore = field(init=False)
     chunker: Chunker = field(init=False)
     doc_embedder: EmbeddingFileCache = field(init=False)
+    query_batcher: QueryBatcher = field(init=False)
     answer_provider: AnswerProvider | None = None
     runner: JobRunner | None = None
     search: SearchService = field(init=False)
@@ -48,6 +50,7 @@ class Services:
         self.files = FileStore(self.settings.data_dir)
         self.chunker = Chunker()
         self.doc_embedder = EmbeddingFileCache(self.settings.emb_cache_dir, self.embedder)
+        self.query_batcher = QueryBatcher(self.embed_queries)
         self.search = SearchService(self)
         if self.answer_provider is None:
             self.answer_provider = build_answer_provider(self.settings)
@@ -80,6 +83,13 @@ class Services:
 
     def embed_query(self, text: str) -> list[float]:
         return self.embedder.embed_query(text)
+
+    def embed_queries(self, texts: list[str]) -> list[list[float]]:
+        """batch 질문 임베딩. provider 가 batch 를 지원하지 않으면 한 건씩 부른다."""
+        many = getattr(self.embedder, "embed_queries", None)
+        if many is not None:
+            return list(many(texts))
+        return [self.embed_query(t) for t in texts]
 
 
 def build_embedder(settings: Settings) -> EmbeddingProvider:

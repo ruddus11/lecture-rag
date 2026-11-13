@@ -17,6 +17,7 @@ async def test_ready_ok(api):
     checks = r.json()["checks"]
     assert checks["sqlite"] and checks["qdrant"] and checks["opensearch"] and checks["nori"]
     assert checks["embedding_model"] is True
+    assert {"institution_id", "collection_id", "document_id"} <= set(checks["opensearch_keyword_fields"])
 
 
 @pytest.mark.parametrize(

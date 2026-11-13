@@ -2,6 +2,10 @@
 
 scope 계산 → (keyword | vector | 둘 다 병렬) → RRF·중복 제거 → 원장 재대조 → 페이지 상한 → top_k.
 한쪽 엔진 실패 시 hybrid 는 degraded 로 응답하고, 둘 다 실패하거나 단일 모드 엔진이 실패하면 503.
+
+캐시(10.1, ADR-008): 질문 임베딩 → 검색 결과 순으로 본다. degraded 결과는 저장하지 않고,
+적중 결과도 원장 대조를 다시 한다.
+cache_status: off(둘 다 꺼짐) | miss | embed_hit(임베딩만 적중) | hit(검색 결과 적중).
 """
 
 from __future__ import annotations
@@ -15,6 +19,7 @@ from typing import TYPE_CHECKING, Any
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.core.cache import embedding_key, retrieval_key
 from app.core.config import EMBED_QUERY_TIMEOUT_SECONDS
 from app.core.errors import AppError
 from app.core.scope import Scope, resolve_scope
@@ -68,6 +73,7 @@ class _Timer:
     def __init__(self) -> None:
         self.t0 = time.perf_counter()
         self.ms: dict[str, float] = {}
+        self.embed_hit = False
 
     def lap(self, name: str, since: float) -> float:
         now = time.perf_counter()
@@ -129,11 +135,22 @@ class SearchService:
     def engine_timeout(self) -> float:
         return self.s.settings.search_engine_timeout_ms / 1000
 
+    async def _embed(self, query: str) -> tuple[list[float], bool]:
+        """(벡터, 캐시 적중 여부). 미적중은 QueryBatcher 로 동시 질문과 묶어 인코딩한다."""
+        cache = self.s.cache
+        key = embedding_key(self.s.embedder.model, query) if cache.embed_enabled else ""
+        if key and (cached := cache.embeddings.get(key)) is not None:
+            return list(cached), True
+        vec: list[float] = await asyncio.wait_for(
+            self.s.query_batcher.embed(query), EMBED_QUERY_TIMEOUT_SECONDS
+        )
+        if key:
+            cache.embeddings[key] = vec
+        return vec, False
+
     async def _vector(self, query: str, scope: Scope, k: int, timer: _Timer) -> list[Candidate]:
         t = time.perf_counter()
-        vec = await asyncio.wait_for(
-            asyncio.to_thread(self.s.embed_query, query), EMBED_QUERY_TIMEOUT_SECONDS
-        )
+        vec, timer.embed_hit = await self._embed(query)
         t = timer.lap("embed_query", t)
         out: list[Candidate] = await asyncio.wait_for(
             self.s.vector.search(
@@ -172,9 +189,38 @@ class SearchService:
         k = int(profile["candidate_k"])
         limit = top_k or int(profile["context_k"])
 
+        cache = self.s.cache
+        cache_on = cache.embed_enabled or cache.retrieval_enabled
         if not scope.collection_ids:
             timer.total()
-            return SearchResult(scope, mode, [], False, [], profile, timer.ms)
+            return SearchResult(scope, mode, [], False, [], profile, timer.ms, "miss" if cache_on else "off")
+
+        rkey = (
+            retrieval_key(
+                query,
+                mode,
+                k,
+                limit,
+                int(profile["rrf_rank_constant"]),
+                int(profile["max_chunks_per_page"]),
+                self.s.index_profile_id,
+                self.s.settings.keyword_analyzer,
+                scope.fingerprint,
+            )
+            if cache.retrieval_enabled
+            else ""
+        )
+        if rkey and (cached := cache.retrieval.get(rkey)) is not None:
+            t = time.perf_counter()
+            cached_modes, cached_items = cached
+            kept, titles = ledger_check(db, scope, cached_items)  # 적중도 원장 대조 (10.1 이중 안전장치)
+            timer.lap("ledger_check", t)
+            hits = [
+                RetrievedHit(rank=i, fused=f, document_title=titles.get(f.chunk.document_id, ""))
+                for i, f in enumerate(kept, start=1)
+            ]
+            timer.total()
+            return SearchResult(scope, mode, list(cached_modes), False, hits, profile, timer.ms, "hit")
 
         engines: list[str] = ["keyword", "vector"] if mode == "hybrid" else [mode]
         calls = {
@@ -202,9 +248,12 @@ class SearchService:
         kept, titles = ledger_check(db, scope, fused)
         kept = cap_per_page(kept, int(profile["max_chunks_per_page"]))[:limit]
         timer.lap("ledger_check", t)
+        if rkey and not degraded:  # 부분 장애 결과는 엔진 복구 후에도 남지 않도록 저장하지 않는다
+            cache.retrieval[rkey] = (tuple(modes_used), list(kept))
         hits = [
             RetrievedHit(rank=i, fused=f, document_title=titles.get(f.chunk.document_id, ""))
             for i, f in enumerate(kept, start=1)
         ]
         timer.total()
-        return SearchResult(scope, mode, modes_used, degraded, hits, profile, timer.ms)
+        status = "embed_hit" if timer.embed_hit else ("miss" if cache_on else "off")
+        return SearchResult(scope, mode, modes_used, degraded, hits, profile, timer.ms, status)

@@ -1,4 +1,9 @@
-"""M8 캐시 골격. TTL 0이면 저장하지 않으며 실제 검색 연결은 M10에서 한다."""
+"""질문 임베딩·검색 결과 TTL 캐시 (설계서 10.1, ADR-008). TTL 0이면 해당 캐시를 쓰지 않는다.
+
+검색 결과 키에는 scope_fingerprint(허용 컬렉션 id:version)가 들어가 다른 권한 범위나 이전 문서 버전의 결과를
+읽을 수 없다. 문서 활성화·삭제 시 전체 clear() 하고, 적중 결과도 원장 대조를 다시 거친다
+(retrieval/service.py).
+"""
 
 from __future__ import annotations
 
@@ -42,6 +47,8 @@ def retrieval_key(
 
 class CacheStore:
     def __init__(self, embed_ttl: int = 0, retrieval_ttl: int = 0) -> None:
+        self.embed_enabled = embed_ttl > 0
+        self.retrieval_enabled = retrieval_ttl > 0
         self.embeddings: TTLCache[str, Any] = TTLCache(maxsize=2000, ttl=max(0, embed_ttl))
         self.retrieval: TTLCache[str, Any] = TTLCache(maxsize=1000, ttl=max(0, retrieval_ttl))
 

@@ -61,6 +61,10 @@ class LocalSTEmbedding:
         return self._encode(texts)
 
     def embed_query(self, text: str) -> list[float]:
+        return self.embed_queries([text])[0]
+
+    def embed_queries(self, texts: list[str]) -> list[list[float]]:
+        """동시 질문을 한 번에 인코딩한다 (QueryBatcher, ADR-011)."""
         if self._is_e5:
-            text = f"query: {text}"
-        return self._encode([text])[0]
+            texts = [f"query: {t}" for t in texts]
+        return self._encode(texts)

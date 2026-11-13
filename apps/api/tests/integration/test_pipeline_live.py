@@ -19,6 +19,9 @@ async def test_ingest_three_modes_then_delete(it_api, pdfs):
     n = doc["chunk_count"]
     assert await s.keyword.count_document(up["document_id"], 1) == n
     assert await s.vector.count_document(s.vector_collection, up["document_id"], 1) == n
+    # 필터 필드 keyword 매핑 (설계서 10.2-4). document_version 은 integer
+    fields = set(await s.keyword.keyword_fields())
+    assert {"chunk_id", "collection_id", "document_id", "institution_id"} <= fields
 
     for mode in ("keyword", "vector", "hybrid"):
         r = await it_api.search("a_student", Q, mode=mode)

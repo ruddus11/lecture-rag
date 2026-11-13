@@ -83,6 +83,10 @@ class FakeKeyword:
     async def ensure_index(self) -> None:
         self._check()
 
+    async def keyword_fields(self) -> list[str]:
+        self._check()
+        return ["chunk_id", "collection_id", "document_id", "institution_id"]
+
     async def bulk_index(self, docs: list[ChunkDoc]) -> None:
         self._check()
         for d in docs:

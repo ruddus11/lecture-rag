@@ -52,6 +52,9 @@ async def ready(request: Request) -> JSONResponse:
             errors.append("keyword_analyzer_missing")
     else:
         checks["nori"] = "skipped(analyzer=standard)"
+    if checks["opensearch"]:
+        _, fields = await _check(services.keyword.keyword_fields())
+        checks["opensearch_keyword_fields"] = fields or []
     checks["embedding_model"] = services.embedder.is_loaded()
     warnings: list[str] = []
     if checks["embedding_model"] and checks["qdrant"]:
