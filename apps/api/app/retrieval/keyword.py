@@ -23,10 +23,8 @@ log = logging.getLogger(__name__)
 
 BULK_BATCH = 200
 _HERE = Path(__file__).resolve()
-_CANDIDATES = [
-    _HERE.parents[2] / "infra" / "opensearch" / "index-chunks.json",  # 컨테이너 /app/infra/...
-    _HERE.parents[4] / "infra" / "opensearch" / "index-chunks.json",  # 저장소 루트
-]
+# Source checkouts and packaged containers have different directory depths.
+_CANDIDATES = [root / "infra" / "opensearch" / "index-chunks.json" for root in _HERE.parents]
 
 
 @lru_cache(maxsize=1)
