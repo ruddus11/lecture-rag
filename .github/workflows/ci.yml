@@ -53,7 +53,10 @@ jobs:
           npm test
           npm run build
       - name: Compose contract
-        run: docker compose --env-file .env.example config --quiet
+        # compose.yaml의 env_file은 .env를 요구하므로 CI에서는 예시 파일을 복사해 쓴다.
+        run: |
+          cp .env.example .env
+          docker compose --env-file .env config --quiet
   integration:
     if: github.event_name == 'workflow_dispatch' && inputs.integration
     needs: checks
