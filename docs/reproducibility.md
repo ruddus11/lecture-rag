@@ -1,40 +1,36 @@
-# M12 재현 검증 기록
+# 실행·검증 기록
 
-## 범위와 기준
+## 2026-11-13 최종 기능 검증
 
-2026-11-13, feat/m11-m12, 기준 062ede3 + M11 ccdcd0e. macOS arm64, uv 0.11.6, Python 3.12.13.
-원격 push 금지로 Actions 실행은 하지 않는다. Docker executable/daemon 부재로 Linux 컨테이너 기동·이미지 build·fresh 볼륨 E2E는 미실행이다. main의 M8 검증 결과와 합쳐 판단해야 한다.
+검증한 런타임 소스는 `03cd4e7`입니다. 아래에서 로컬 Docker와 원격 Linux, 실제 OpenAI 호출을 구분했습니다. 과거 성능 수치를 이번 컨테이너 측정으로 바꾸지 않았습니다.
 
-## 로컬 결과
+| 환경 | 확인한 범위 | 결과 |
+|---|---|---|
+| macOS arm64, Python 3.12.13 | API 회귀, 린트·포맷·mypy | 156 passed, integration 5건 별도; 61 source files 타입 검사 통과 |
+| Docker Desktop 4.99.0 / Engine 29.9.3 / Compose 5.7.0 | 독립 프로젝트의 API·웹·Qdrant·OpenSearch | 네 서비스 정상, SQLite·Nori·bge-m3·검색 필드 준비 상태 정상 |
+| 로컬 Docker 검색 엔진 | 고유 인덱스의 통합 테스트 | 5 passed. aiohttp/Python 관련 DeprecationWarning 5건은 별도 기록 |
+| 로컬 Docker HTTP | 자작 PDF 3개 업로드, 5문항×3검색 방식 | 각 방식 Hit@5 5/5; 기관별 자료 범위 적용 확인 |
+| 로컬 Docker 웹 + 실제 OpenAI | 학생 로그인→질문→인용→원문 PDF 7/10쪽 | 실제 GPT 답변과 PDF canvas 표시 확인 |
+| 로컬 Docker 웹 + 실제 OpenAI | 근거에 없는 교수 연구실 전화번호 질문 | 근거 부족 보류 화면 확인 |
+| 로컬 Docker HTTP | 익명·타기관·삭제 | 익명 파일 401, 타기관 파일 404, 허용 Range 206, 삭제 202 후 파일 404와 세 방식 검색에서 제외. 샘플 재업로드로 데모 복원 |
+| GitHub Actions Linux | 기본 검사·새 Compose·실제 엔진·브라우저 | checks와 integration 모두 성공. [실행 기록](https://github.com/ruddus11/lecture-rag/actions/runs/43382854896) |
 
-- API: `uv sync --locked`, `uv run pytest` → **137 passed, 5 integration deselected** (22.80초).
-- `uv run ruff check .`, `uv run ruff format --check .`, `uv run mypy app` 통과(60 source files).
-- 웹: `npm ci`, lint·typecheck·test **16 passed**, build 통과. 기본 Node 25.8.0에서는 engine warning이 있으므로 fresh 재현은 CI와 같은 Node 22.23.5를 사용한다.
-- `docker-compose --env-file .env.example config --quiet` → standalone Compose 통과. Docker 기동과 구분한다.
-- workflow YAML 파싱·checks/integration job·contents:read 권한 구조 확인. Actions 실행 검증을 대체하지 않는다.
-- `prepare_env.py`: 새 .env 난수 길이 ≥32바이트·0600, 기존 파일 재실행 거부·내용 유지 확인. 최초 Path.open(opener) 오류를 발견하여 built-in open으로 수정하고 재확인했다.
-- 유료 smoke: OpenAI embedding·OpenAI answer·Claude answer 모두 **SKIP** (키 없음).
+로컬 Docker는 새 문서·DB·검색 인덱스 볼륨으로 실행했으며, 모델 다운로드만 기존 bge-m3 캐시를 읽기 전용으로 재사용했습니다. 원격 Linux는 fresh 모델 캐시로 검증했습니다. 로컬 평가의 API `/meta` commit은 빌드 인자를 지정하지 않아 `unknown`으로 남았으므로, 해당 원본 결과를 수정하지 않고 별도로 검증 소스를 명시했습니다.
 
-## Fresh clone
+## 실제 공급자 연결 확인
 
-M12 구현 커밋을 저장소 내부 `.repro/checkout`에 `git clone --no-hardlinks`하여, 기존 가상환경/node_modules 없이 lock install부터 재검증한다. 최종 실행 결과는 아래 로그에 첨부했다. 기존 실제 실행 데이터와 private 자료는 복사하지 않는다.
+- OpenAI 임베딩: `text-embedding-3-small`, 1,536차원, 단일 요청 3,316ms.
+- OpenAI 답변: `gpt-4.1-mini-2025-04-14`, 정상 근거의 구조화 답변과 인용 검증 통과. 단일 smoke 입력 573·출력 101토큰, 5,221ms.
+- 근거 없는 질문: 같은 모델이 `insufficient_evidence`를 반환했습니다. 단일 smoke 입력 572·출력 15토큰, 4,797ms.
+- 웹 전체 흐름은 별도로 실제 로컬 bge-m3 검색 결과를 GPT에 전달해 확인했습니다. 위 단일 요청 시간을 지연 벤치마크로 사용하지 않았습니다.
+- API 키는 로컬 `.env`에서만 읽었으며 GitHub CI에 전달하지 않았습니다. 원격 브라우저 시나리오의 답변 생성기는 `fake`였습니다.
+- Anthropic 실제 호출과 광범위한 생성 품질 평가는 수행하지 않았습니다.
 
-## Linux 실행 절차와 남은 게이트
+## 컨테이너 검증에서 수정한 문제
 
-원격 업로드를 승인한 별도 작업에서 `.github/workflows/ci.yml`의 workflow_dispatch integration=true를 실행한다. 네 서비스 compose→ready→실제 엔진 5건→브라우저 1건 결과와 `linux-compose-<commit>` artifact 링크를 이 문서에 붙인다. integration 실패 시 compose 로그·ps·메모리 artifact로 원인을 확인한다. 이 성공 로그와 README 모든 명령의 Docker 환경 재실행 전까지 **M12 전체 완료는 보류**한다.
+1. 저장소 폴더 깊이를 고정한 설정 경로 코드가 `/app/app/retrieval/keyword.py`에서 `IndexError`를 일으켰습니다. 같은 배치 경로를 재현하는 회귀 테스트를 추가하고 상위 경로를 탐색하도록 수정했습니다.
+2. Nginx가 PDF.js `.mjs` 워커를 `application/octet-stream`으로 보내 원문 뷰어가 열리지 않았습니다. JavaScript MIME 매핑을 추가했습니다. 실제 HTTP에서 `.mjs`는 `application/javascript`, CSS는 `text/css`를 유지하는 것과 브라우저 canvas 렌더링을 확인했습니다.
 
-README의 Docker 시작·ready·실제 엔진·Chrome 명령은 이 머신에서 실행하지 못했다. `infra/local` 네이티브 실행은 Docker 수용 증거로 바꾸지 않는다. v0.1 태그는 main 담당자가 결정한다.
+## 재현 명령
 
-
-## Fresh clone 최종 결과
-
-- 2026-11-13 03:42 UTC, 소스 `ff0f3ecd656f1ca55da2a0f1ac34d9817179f905` (M12 구현 커밋; 이후 변경은 결과 문서·로그만).
-- `git clone --no-hardlinks . .repro/checkout` 후 새 `.venv`, 새 node_modules를 생성했다. 엔진·실행 데이터·기존 .env는 복사하지 않았다.
-- Node **22.23.5**, Python **3.12.13**, uv **0.11.6**, Darwin arm64.
-- lock 설치, API **137 passed / 5 deselected (27.14초)**, ruff·format·mypy 및 루트 scripts 검사 통과.
-- npm ci·lint·typecheck, 웹 **16 passed**, build 통과. Node engine 경고 **0건**.
-- .env 초기화·훅 설정·index **204 blobs / 0 findings**, 이력 **288 blobs / 0 findings**, standalone Compose config 통과.
-- 유료 smoke 3항목 모두 키 없음 SKIP. API 디렉터리에서 실행한 smoke의 AUTH_SECRET 경고는 루트 .env를 자동 로드하지 않기 때문이며 키 설정·외부 호출은 하지 않았다.
-- 개인 개발 환경 경로가 포함된 원본 실행 로그는 공개 대상에서 제외한다. 위 결과는 기존 검증 기록의 요약이며 이번 공개 자료 정리에서 테스트를 재실행한 결과는 아니다.
-
-이 결과는 macOS fresh clone의 **로컬 명령** 재현 증거다. README의 Docker·Chrome 실기동 명령을 모두 성공했다는 뜻은 아니므로 작업목록의 전체 재현 게이트는 미체크 상태다.
+일반 실행과 실제 모델 선택 방법은 [README](../README.md)에 정리했습니다. 데이터 삭제가 필요한 fresh 검증은 기존 자료가 없는 별도 프로젝트 이름·볼륨에서만 수행합니다. 원본 콘솔 로그와 개인 개발 경로는 공개 저장소에 넣지 않았습니다.

@@ -8,7 +8,7 @@
 | vector |30/26|0/0|1.0|1.0/1.0|1.0|1.0|
 | hybrid |30/26|0/0|1.0|1.0/1.0|1.0|1.0|
 
-[자작 샘플 문항별 CSV·환경 summary](../evaluation/results/). 원본 실행 로그는 공개 대상에서 제외한다. test 10문항은 동결하고 최종 홀드아웃으로 남겼다.
+[자작 샘플 문항별 CSV·환경 summary](../evaluation/results/). 원본 실행 로그는 공개 대상에서 제외한다. test 10문항은 동결해 두었으며 최종 실행 결과는 아래 절에 정리했다.
 
 ## 지표
 
@@ -30,7 +30,7 @@ Hit@k는 상위 k 청크의 페이지 집합과 gold 교집합 여부, MRR@10은
 
 쉬운 자작 슬라이드와 작은 표본에 대한 결과다. 유사 문항이 있어 dev/test 독립성이 약하며 일반적 hybrid 우월성을 주장하지 않는다. 실제 수업 자료·복잡한 표·다단 레이아웃으로 확대해야 한다. 답변 보류율·인용 의미 정확도·유료 provider 품질은 미평가다.
 
-## 부록 A. live smoke (실제 provider 1회 호출)
+## 부록 A. 2026-11-12 초기 live smoke 기록 (최신 실행은 reproducibility.md)
 
 | 날짜 | 항목 | 결과 | 모델 ID | usage | 비고 |
 |---|---|---|---|---|---|
@@ -39,3 +39,10 @@ Hit@k는 상위 k 청크의 페이지 집합과 gold 교집합 여부, MRR@10은
 | 2026-11-12 | Claude 답변 | SKIP | - | - | `ANTHROPIC_API_KEY` 없음 |
 
 실행: `cd apps/api && uv run python -m scripts.live_smoke --embedding --openai --claude` (루트 `.env`의 키를 쓴다). 출력 JSON(응답 초안·usage·모델 ID)을 이 표에 옮긴다. 키는 출력되지 않는다.
+
+
+## 2026-11-13 동결 test 10문항 확인
+
+Docker Desktop arm64, 실제 bge-m3·Qdrant·OpenSearch/Nori, 캐시 off 조건에서 기존 동결 test 10문항을 세 방식으로 실행했습니다. 접근 가능한 자작 문서 2개·19청크였고, 각 방식의 실패·skip은 0건이었습니다. 키워드·벡터·혼합 모두 Hit@1·Hit@3·MRR@10 1.0을 기록했습니다. [CSV와 환경 요약](../evaluation/results/release-smoke/)을 함께 공개했습니다.
+
+이 결과는 작은 자작 자료의 재현 확인입니다. dev/test의 유사성이 있고 쉬운 문항이므로 일반화 성능이나 혼합 검색의 우월성을 주장하지 않았습니다. 검색 API만 호출한 결과이며 실제 LLM 답변의 품질 지표가 아닙니다. 이전 본문의 test 미평가 표기는 당시 기록으로, 현재 상태는 이 절을 기준으로 확인합니다.

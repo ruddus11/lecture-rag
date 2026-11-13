@@ -1,29 +1,32 @@
 # 강의자료 RAG 검색
 
-한국어 강의 PDF에서 질문의 근거를 찾고 원문 페이지로 확인하는 검색 서비스다. 반복 학습 중 개념과 출처를 다시 확인하는 흐름에 집중한다. FastAPI·React/TypeScript·Qdrant·OpenSearch의 BM25/vector/RRF hybrid를 비교할 수 있다.
+강의 PDF에 질문한 뒤 답변의 근거가 된 원문 페이지를 바로 확인하도록 만든 검색 서비스입니다. 용어가 정확히 기억나지 않을 때 자료를 다시 찾고, 답변을 원문과 대조하는 학습 흐름에 집중했습니다.
+
+FastAPI·React/TypeScript로 문서 업로드, 기관별 접근 제어, 키워드·벡터·혼합 검색, 인용 검증과 답변 보류를 구현했습니다. SQLite와 단일 워커를 사용해 개인 개발자가 실행·관리할 수 있는 구성으로 정리했습니다.
 
 ## 현재 상태
 
-**M1~M12 구현 및 로컬 검증 완료. M8 Docker Compose 실기동 수용검증과 원격 CI는 미검증이며, 유료 API smoke는 키가 없어 건너뛰었다.** 구현 완료와 Docker·원격 환경의 수용검증 완료는 구분한다.
+2026-11-13 기준 Docker Desktop의 로컬 4서비스 실행과 GitHub Actions Linux Compose 통합·브라우저 검증을 완료했습니다. API 회귀 **156개**, 웹 테스트 **16개**, 실제 Qdrant·OpenSearch 통합 테스트 **5개**를 확인했습니다. 실제 OpenAI 임베딩과 구조화 답변·인용 검증, 근거 없는 질문의 보류도 확인했습니다.
 
-M10 성능 측정은 네이티브 호스트 기준으로 완료했다. hybrid 검색 캐시 off에서 동시 1 p50 46ms·p95 56ms, 동시 5 p50 136→118ms·p95 166→127ms, 처리량 약 18% 개선을 확인했다([성능 기록](docs/performance.md)). M11은 본문 크기 제한·로그 비밀 마스킹·보안 회귀를 추가했고, M12는 재현 절차·비밀 스캔·CI 및 수동 Linux Compose 검증 job을 구현했다. 원격 workflow 성공이나 컨테이너 성능을 확인한 결과는 아니다.
+- [검증 범위와 실행 기록](docs/reproducibility.md)
+- [전체 Linux CI 성공 기록](https://github.com/ruddus11/lecture-rag/actions/runs/43382854896)
+- [검색 평가와 한계](docs/evaluation.md)
+- [네이티브 환경의 성능 측정](docs/performance.md)
 
-공개 검증 결과는 아래 표와 [평가](docs/evaluation.md), [성능 기록](docs/performance.md), [재현 기록](docs/reproducibility.md)을 참조한다. 내부 작업 문서와 원본 실행 로그는 공개 저장소에서 제외한다.
+위 결과는 개인 프로젝트의 기능 검증입니다. 운영 서비스의 보안 인증이나 일반적인 RAG 품질 평가를 의미하지 않습니다.
 
 ## 실행
 
-Python 3.12, Docker Compose v2, Docker Desktop 메모리 최소 8GB와 충분한 디스크가 필요하다. Linux에서는 vm.max_map_count=262144 이상을 설정한다. 첫 실행은 모델 다운로드에 시간이 걸린다.
+Python 3.12와 Docker Compose가 필요합니다. Docker 가상 머신에는 메모리 8GB 이상을 권장합니다. 최초 빌드와 bge-m3 모델 다운로드에는 시간이 걸리고 디스크 공간이 필요합니다.
 
 ```bash
 python3 scripts/prepare_env.py
-# 기존 .env가 있으면 보존하고 AUTH_SECRET을 32바이트 이상 난수로 직접 설정한다.
-# 기관·계정 파일이 없으면 SEED_ON_START=true일 때 example 파일을 읽는다.
+# 기존 .env는 덮어쓰지 않습니다.
 docker compose up --build -d
-docker compose ps
-curl http://localhost:8000/api/v1/health/ready
+python3 scripts/wait_ready.py
 ```
 
-웹: http://localhost:3000. API: http://localhost:8000/api/v1/docs. 키 없이 `EMBEDDING_PROVIDER=local`, `EMBEDDING_MODEL=BAAI/bge-m3`, `ANSWER_PROVIDER=fake`가 기본이다. fake는 동작 검증용이며 생성 모델의 답변 품질을 보여주지 않는다.
+웹은 http://localhost:3000 에서 열 수 있습니다. `/health/live`와 검색 모델·엔진까지 확인하는 `/health/ready`를 구분했습니다.
 
 | 데모 계정 | 비밀번호 | 권한 |
 |---|---|---|
@@ -32,106 +35,98 @@ curl http://localhost:8000/api/v1/health/ready
 | b_admin | admin-b-demo-2026 | campus_b 관리자 |
 | b_student | student-b-demo-2026 | campus_b 학생 |
 
-로그인 → 관리자 자료 업로드 → 사용 가능 상태 → 질문 → 근거 카드 → PDF 페이지 확인. 실패 문서는 재시도, 불필요한 문서는 삭제할 수 있다. 토큰은 메모리에만 보관하므로 새로고침하면 다시 로그인한다.
+관리자로 로그인 → 자료에서 컬렉션 선택 → `data/samples/`의 자작 PDF 업로드 → 사용 가능 상태 확인 → 질문 → 인용 카드 → PDF 원문 페이지 순으로 확인할 수 있습니다. 토큰은 메모리에 보관하므로 새로고침하면 다시 로그인합니다.
 
-## 환경변수
+기본 답변 생성기는 API 키 없이 동작하는 `fake`입니다. 검색과 UI 검증용이며 생성 모델 품질을 나타내지 않습니다.
 
-전체 목록은 [.env.example](.env.example). `AUTH_SECRET`, `DATA_DIR`, `INSTITUTIONS_FILE`, `USERS_FILE`, `QDRANT_URL`, `OPENSEARCH_URL`로 실행 환경을 설정한다. 외부 LLM은 `ANSWER_PROVIDER=openai|claude`와 해당 API 키·모델 ID를 설정한다. 실제 유료 API smoke는 키가 없어 미검증이다. 실제 비밀은 `.env`에만 보관한다. 질문 임베딩·검색 결과 캐시는 `CACHE_EMBED_TTL_SECONDS`·`CACHE_RETRIEVAL_TTL_SECONDS`(0이면 끔)로 조절하며 정확도 평가는 둘 다 0으로 실행한다(ADR-008).
+## 실제 OpenAI 답변
 
-## 로컬 개발과 검증
+`.env`에서 아래 변수를 설정한 뒤 API를 다시 생성합니다. 실제 키는 로컬 파일에만 입력합니다.
 
-Python 3.12, uv 0.11.6, Node.js 22.23.5가 기준이다. Docker 없는 macOS 검증 방법은 [로컬 엔진 안내](infra/local/README.md).
+```dotenv
+ANSWER_PROVIDER=openai
+OPENAI_CHAT_MODEL=gpt-4.1-mini
+OPENAI_API_KEY=
+```
+
+```bash
+docker compose up -d --force-recreate api
+```
+
+로컬 임베딩은 기본 bge-m3를 유지합니다. OpenAI 임베딩은 별도 smoke에서 `text-embedding-3-small` 1,536차원을 확인했습니다. 임베딩 모델을 바꿀 때는 기존 자료의 재색인이 필요합니다. Claude 어댑터도 구현했지만 실제 Anthropic 호출은 검증하지 않았습니다.
+
+## 환경변수와 자료 경계
+
+전체 변수는 [.env.example](.env.example)에 정리했습니다. 실제 비밀 값은 비워 두었습니다.
+
+- `AUTH_SECRET`: 최초 준비 스크립트가 난수로 생성합니다. 운영 모드에서는 기본값·짧은 비밀로 시작할 수 없게 했습니다.
+- `DATA_DIR`, `INSTITUTIONS_FILE`, `USERS_FILE`: 자료 저장소와 기관·계정 정책을 지정합니다.
+- `QDRANT_URL`, `OPENSEARCH_URL`: 검색 엔진 연결 주소를 지정합니다.
+- `CACHE_EMBED_TTL_SECONDS`, `CACHE_RETRIEVAL_TTL_SECONDS`: 평가 시 두 값을 0으로 설정했습니다.
+- `ANSWER_PROVIDER`, `OPENAI_CHAT_MODEL`, `OPENAI_API_KEY`: 실제 생성 모델을 선택합니다. 호출 비용이 발생합니다.
+
+`.env`, 실행 DB, 개인 수업 PDF, 내부 작업 문서와 원본 실행 로그는 공개 대상에서 제외했습니다. 공개 샘플과 평가 문항은 자작 자료입니다. 예제 계정은 로컬 데모용으로만 사용합니다.
+
+## 구조
+
+```mermaid
+flowchart LR
+    U[관리자 PDF 업로드] --> API[FastAPI: 기관·역할 확인]
+    API --> DB[(SQLite 원장)]
+    DB --> W[단일 문서 워커]
+    W --> P[파싱·페이지 경계 청킹·임베딩]
+    P --> Q[(Qdrant)]
+    P --> O[(OpenSearch / Nori)]
+    S[학생 질문] --> A[허용 자료 범위 계산]
+    A --> Q
+    A --> O
+    Q --> R[RRF 결합·원장 재확인]
+    O --> R
+    R --> L[답변 생성·인용 검증·보류]
+    L --> V[근거 카드·인증 PDF 뷰어]
+```
+
+- `apps/api/app/`: 인증·권한, 문서 워커, 검색, 답변 생성과 저장소를 구현했습니다.
+- `apps/web/src/`: 질문, 자료 목록, 인용 카드와 PDF 뷰어를 구현했습니다.
+- `infra/`, `compose.yaml`: API·웹·Qdrant·OpenSearch 네 서비스를 구성했습니다.
+- `config/`: 로컬 데모 기관·역할·계정 예제를 정리했습니다.
+- `evaluation/`: 동결 dev/test 문항, 평가 도구와 자작 자료의 결과를 보관했습니다.
+- `docs/`: 공개 아키텍처, ADR, 검증 요약과 한계를 정리했습니다.
+
+삭제는 원장에서 접근을 먼저 차단한 뒤 인덱스·파일·청크를 정리했습니다. 기관 ID를 클라이언트 요청에서 그대로 신뢰하지 않고 서버가 매 요청의 허용 범위를 계산하도록 구현했습니다.
+
+## 개발·검증
 
 ```bash
 cd apps/api
 uv sync --locked
 uv run pytest
 uv run ruff check .
+uv run ruff format --check .
 uv run mypy app
-# 저장소 루트에서 연 별도 터미널
+```
+
+```bash
 cd apps/web
 npm ci
-npm run dev
+npm run lint
 npm run typecheck
 npm test
-npm run lint
 npm run build
 ```
 
-Vite 프록시는 API 8000으로 연결한다. 실제 엔진 integration은 `cd apps/api && uv run pytest -m integration`. Chrome 브라우저 시나리오는 `apps/web/e2e/browser_flow.mjs` 참조. 기존 컬렉션에 동일 파일을 중복 업로드하면 409이므로 새 자작 PDF나 비어 있는 테스트 컬렉션을 사용한다.
-
-## 구조와 선택 이유
-
-- `apps/api/app`: 인증·권한, SQLite 원장, 문서 단일 워커, retrieval, generation.
-- `apps/web/src`: app, features, shared. 서버 상태는 React Query, 인증은 React 메모리 상태.
-- `infra/`, `compose.yaml`: 검색 엔진과 네 서비스 구성.
-- `config/`: 기관·정적 데모 계정 example.
-- `docs/`: 공개 아키텍처·ADR·평가 및 검증 요약.
-- `evaluation/`: 동결 dev/test JSONL·HTTP 평가 도구·결과 CSV. 수업 자료는 `evaluation/private/`에만 둔다.
-
-혼자 운영할 수 있도록 SQLite·파일 볼륨·단일 프로세스 큐를 사용한다. 삭제는 원장을 먼저 `deleting`으로 바꿔 접근을 차단한 후 인덱스→파일→청크를 정리한다. 중간 실패는 비공개 상태로 유지하고 관리자가 재시도한다.
-
-## 한계
-
-- 텍스트 PDF만 지원. 스캔·표·다단 레이아웃은 품질 저하 또는 실패.
-- 단일 프로세스·단일 워커. 동시 업로드는 직렬 처리.
-- 로컬 임베딩은 CPU라 색인이 느리다. 측정 조건은 docs/performance.md 참조.
-- 평가 표본이 작아 일반적 우월성을 주장하지 않는다. M9 dev 30문항 결과만 있으며 test 10문항과 실제 생성 모델 품질은 미검증.
-- 데모 인증은 정적 계정·HS256 JWT. 공개 배포에는 별도 인증·TLS 필요.
-- OpenSearch 보안 플러그인을 끄고 내부 네트워크에만 둔다. 외부 공개 금지.
-- 외부 LLM을 선택하면 질문과 검색 근거가 해당 제공자에 전송된다. 개인정보·내부 문서를 반입하지 않는다.
-- reranker·Ollama·OCR·Spring gateway는 미구현.
-
-## 다음 작업
-
-Docker 환경에서 M8 fresh Compose 실기동 수용검증을 수행하고 컨테이너 성능·`docker stats`를 기록한다. 이후 원격 실행이 승인된 환경에서 기본 CI와 Actions 수동 integration job을 실행해 Linux 증거를 첨부한다. v0.1 태그는 수용검증 후 별도로 판단한다. 데이터 삭제를 수반하는 `docker compose down -v`는 검증용 환경에서만 실행한다.
-
-
-## 검증 결과와 화면
-
-| 날짜 / 소스 기준 | 환경 / 표본 | 결과와 증거 |
-|---|---|---|
-| 2026-11-12 / aa10978 이전 M7 API와 M8 최종 UI | macOS·Chrome, 핵심 흐름 1회 | 로그인→업로드→답변→PDF→보류. [스크린샷 폴더](docs/screenshots/m8/), 새 M11 코드의 브라우저 검증은 아님 |
-| 2026-11-12 / 062ede3 M9 | 실제 bge-m3·Qdrant·OpenSearch/Nori, dev 30문항×3모드 | 정답 있음 26문항 Hit@1 keyword 0.9615, vector/hybrid 1.0. [평가](docs/evaluation.md), [CSV](evaluation/results/) |
-| 2026-11-13 / 7f77d4a M10 | 네이티브 호스트·실제 bge-m3/Qdrant/OpenSearch, 캐시 off | hybrid 동시 5 p50 136→118ms·p95 166→127ms, 처리량 +18%, dev 30문항 세 모드 순위 동일. [성능 기록](docs/performance.md) |
-| 2026-11-13 / ccdcd0e M11 | macOS arm64·Python 3.12.13, API 136건+scanner 1건 | 모두 통과, integration 5건 제외. 중첩 로그/본문 상한 RED→GREEN, 설정 수용 3건. [보안 증거](docs/security.md) |
-| 2026-11-13 / ff0f3ec M12 구현 소스 | macOS fresh clone·Python 3.12.13·Node 22.23.5, API 137/웹 16건 | 모두 통과, lint/typecheck/build·Compose config 통과. [재현 기록](docs/reproducibility.md). 원격 CI/Linux Compose는 미실행 |
-| 2026-11-13 / M10 + M11·M12 병합 결과 | macOS·Python 3.12.13·Node 22.22.3 | API **155 passed / 5 integration deselected**, 웹 **16 passed / 6 files**, 모두 종료 코드 0. 이번 실행에서 실제 엔진 integration·Docker·원격 CI는 재검증하지 않음 |
-
-페이지 번호는 PDF **물리 페이지**(1부터)이며 슬라이드 인쇄 번호와 다를 수 있다. fake 답변은 실제 생성 모델 품질의 증거가 아니다.
-
-## 재현과 CI
-
-저장소 루트에서 비밀 스캔 훅을 켤 수 있다.
+실제 엔진 테스트는 개발용 loopback 포트를 사용합니다. 테스트는 고유 인덱스를 생성해 기존 자료와 분리했습니다.
 
 ```bash
-git config core.hooksPath .githooks
-python3 scripts/check_secrets.py
-python3 scripts/check_secrets.py --history
-docker compose --env-file .env.example config --quiet
-```
-
-기본 CI는 ruff·format·mypy·pytest·웹 lint/typecheck/test/build·비밀 스캔·Compose config를 검사한다. Actions `workflow_dispatch`에서 integration=true를 선택하면 Linux runner의 새 볼륨에 네 서비스를 띄우고 실제 엔진 5건·브라우저 1시나리오를 실행한다. 로그·스크린샷은 `linux-compose-<commit>` artifact다. 유료 API 키는 필요하지 않다. workflow 파일 작성과 원격 실행 성공은 별도 상태다.
-
-Docker 환경에서 ready 및 브라우저 수용 검증:
-
-```bash
-python3 scripts/wait_ready.py
-# 루트에서 연 새 터미널; 빈 테스트 컬렉션을 사용한다.
-cd apps/web
-npm ci
-E2E_BASE=http://127.0.0.1:3000 node e2e/browser_flow.mjs ../../data/samples/os_week3_process.pdf ../../.repro/artifacts/screenshots
-```
-
-설치된 Chrome이 필요하다. 중복 파일 409를 피하려면 폐기 가능한 새 데이터 환경을 사용한다. 실제 엔진 테스트는 개발용 loopback override를 켠 환경에서 실행한다(기본 Compose의 엔진 포트는 비공개).
-
-```bash
-# 저장소 루트
 docker compose -f compose.yaml -f compose.override.example.yaml up --build -d --wait
 cd apps/api
 uv run pytest -m integration
-# 유료 키가 없으면 각 항목 SKIP. 있는 키는 비용이 발생하므로 수동 실행한다.
-uv run python -m scripts.live_smoke --embedding --openai --claude
 ```
 
-[아키텍처](docs/architecture.md), [고객 요구](docs/requirements.md), [ADR 001~008](docs/decisions/)에서 구조·선택 이유·다음 한 작업을 확인할 수 있다.
+비밀 스캔은 `python3 scripts/check_secrets.py --history`로 실행합니다. 모든 비밀 유형을 탐지하는 도구는 아니므로 수동 확인도 필요합니다. GitHub Actions의 수동 `integration=true` 실행에서는 fresh Linux Compose와 브라우저 시나리오를 검증했습니다.
+
+## 한계와 다음 작업
+
+텍스트 PDF와 작은 자작 자료로 검증했습니다. 스캔·복잡한 표·다단 문서는 지원 범위 밖입니다. 동결 test 10문항에서 세 검색 방식 모두 높은 점수를 얻었지만, 쉬운 문항과 작은 표본이므로 방식 간 우열이나 실서비스 품질을 주장하지 않았습니다.
+
+실제 LLM은 정상 질문·근거 없는 질문의 연결 확인을 완료했으며, 광범위한 인용 정확도·오보류율 평가는 남아 있습니다. 단일 프로세스·단일 워커, 정적 데모 계정과 내부 전용 검색 엔진 구성이므로 외부 운영 전에는 별도 인증·TLS·운영 정책이 필요합니다. 다음 작업은 허용된 실제 자료로 평가 문항과 예외 사례를 늘리는 것입니다.
